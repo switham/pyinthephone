@@ -1,5 +1,16 @@
 #!/usr/bin/env python
-""" wsgi_demo.py -- NIH Flask and do some tricks with it. """
+"""
+wsgi_demo.py--WSGI server with templating, a routing decorator, and some demos.
+Arguments on the command line name files users are allowed to view & download.
+(Paths are relative to the directory where wsgi_demo.py is run.)
+
+This code is insecure!
+    It displays your Unix environment variables.
+    It shows Python exceptions on the 404 page.
+    It's vulnerable to code-injection attacts (although I made some vain
+    gestures).
+    wsgi_self_serv.py makes this script display its own source code.
+"""
 
 from wsgiref.simple_server import make_server
 import os
@@ -38,6 +49,7 @@ def fill_template(template, subs_dict):
     """
     text = template
     for key, value in subs_dict.iteritems():
+        # dict may contain junk non-text items:
         if isinstance(value, basestring):
             text = text.replace("{{" + key + "}}", value)
     return text
@@ -57,9 +69,9 @@ def route(path):
            # home_page() can look at environ["PATH_INFO"] to see path.
            ...
            return text
-    Path matches (e.g. /foo/* matches /foo/bar) go most-specific-first;
-    "/foo" is different from "/foo/";
-    "/foo/" is more specific than "/foo/*".
+    Matches (e.g. /foo/* matches /foo/bar) are tried most-specific-first;
+        "/foo" is different from "/foo/";
+        "/foo/" is more specific than "/foo/*".
     """
 
     assert path.startswith("/")
@@ -86,12 +98,18 @@ def do_404(environ, start_response, complaint=None):
     do_headers(start_response, "404 NOT FOUND", "text/plain")
     text = "%r not found." % environ["PATH_INFO"]
     if complaint:
-        text += "\n\nBesides,\n\n" + complaint
+        text += "\n\nOr maybe it's this:\n\n" + complaint
 
     return text
 
 
 def do_route(environ, start_response):
+    """
+    Route the request to the appropriate callable in the ROUTES table.
+    Sets environ["wildcard_part"] = what matches the * in, e.g.  "/foo/*".
+    """
+    environ["wildcard_part"] = ""
+    
     path = environ["PATH_INFO"]
     assert "*" not in path, "'*' in path."
     assert "//" not in path, "'//' in path."
@@ -111,6 +129,7 @@ def do_route(environ, start_response):
         if path.startswith(subpath):
             wildpath = subpath + "*"
             if wildpath in ROUTES:
+                environ["wildcard_part"] = "/".join(parts[n:])
                 return ROUTES[wildpath](environ, start_response)
 
     return do_404(environ, start_response)
@@ -158,6 +177,7 @@ def icon(environ, start_response):
 
 
 @route("/environ")
+@route("/environ/*")
 def dump_environ(environ, start_response):
     do_headers(start_response, "200 OK", "text/plain")
     return "\n".join("%s: %r" % (key, value)
@@ -189,7 +209,7 @@ def list_files(environ, start_response):
     
 @route("/static/*")
 def do_static(environ, start_response):
-    path = environ["PATH_INFO"][len("/static/"):]
+    path = environ["wildcard_part"]
     assert not path.endswith("/"), "I won't list that directory."
 
     if path in ALLOWED_FILES:
@@ -201,7 +221,7 @@ def do_static(environ, start_response):
 
 @route("/download/*")
 def do_download(environ, start_response):
-    path = environ["PATH_INFO"][len("/download/"):]
+    path = environ["wildcard_part"]
     assert not path.endswith("/"), "I don't do that directory."
 
     if path in ALLOWED_FILES:
