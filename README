@@ -1,0 +1,39 @@
+wsgi_demo.py: Does lots of things:
+    Steals fill_template() and textarea demo from wsgi_textarea.py.
+    Adds a "@route()" decorator that does wildcards.
+    Serves the following routes:
+    /
+    /index.html
+    /faviocon.ico
+      	Actually serves	SL4A.jpg as image/jpeg.  (Is that right?)
+    /welcome.html
+        Says hello with script path (like wsgi_hello.py) using fill_template().
+    /textarea
+        Textarea demo taken from wsgi_textarea.py.
+    /environ
+      	Prints out the environ dictionary.  This is a little insecure
+        since it includes all your Unix environment variables.
+    /static/
+    /download/
+      	Shows a listing of files that you "allowed" on the command line when
+      	you started the wsgi_demo.py server.
+        Each is shown with "view" and "download" links.
+      	Also gives a link to (see below	for why)
+      	   http://www.digiblog.de/2011/04/android-and-the-download-file-headers
+    /static/*
+        Treat the * part of the path as ./[path/]filename relative to
+        where wsgi_demo.py is running.  Serve only allowed files.
+        Serve the file as "text/plain".  This is where the "view" links go.
+    /download/*
+      	Same set of files each served as
+      	    Content-Type: application/octet-stream
+      	    Content-Disposition: attachment; filename="thefilename.ext"
+      	Still trying to hack this to get my DEFY XT to download files.
+      	It may be that the BaseHTTPServer needs to do
+            self.protocol_version = 'HTTP/1.1'
+   	instead of the current default 1.0.  As suggested in comment at:
+            https://gist.github.com/josiahcarlson/3250376
+      	Or (just now thinking) maybe application/binary?
+        See also:
+           http://www.digiblog.de/2011/04/android-and-the-download-file-headers
+        My phone can download only the SECOND (.zip) example there.

@@ -1,0 +1,8 @@
+HTTP/1.1 200 OK
+Date: Thu, 28 Feb 2013 09:44:29 GMT
+Server: Apache
+X-Powered-By: PHP/5.3.18-nmm1
+Content-Disposition: attachment; filename="digiblog.ZIP"
+Transfer-Encoding: chunked
+Content-Type: application/octet-stream
+
