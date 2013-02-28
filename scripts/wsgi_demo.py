@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """
 wsgi_demo.py--WSGI server with templating, a routing decorator, and some demos.
+RUN FROM THE wsgi_demo directory: scripts/wsgi_demo.py [files...]
+The wsgi_demo directory corresponds to /mnt/sdcard/sl4a on Android --
+scripts run there but are read from    /mnt/sdcard/sl4a/scripts.
+
 Arguments on the command line name files users are allowed to view & download.
 (Paths are relative to the directory where wsgi_demo.py is run.)
 
@@ -15,6 +19,7 @@ This code is insecure!
 from wsgiref.simple_server import make_server
 import os
 from sys import argv, exit
+from mimetypes import guess_type
 
 
 header_template = """<!DOCTYPE html>
@@ -133,8 +138,11 @@ def do_route(environ, start_response):
                 return ROUTES[wildpath](environ, start_response)
 
     return do_404(environ, start_response)
-            
-    
+
+
+def just_guess_type(filename):
+    return guess_type(filename)[0]
+
 
 def do_headers(start_response, status, content_type, *more):
     headers = []
@@ -144,7 +152,6 @@ def do_headers(start_response, status, content_type, *more):
     print '\n'.join(str(header) for header in headers)
     start_response(status, headers)
 
-    
 
 # Every WSGI application must have an application object - a callable
 # object that accepts two arguments. For that purpose, we're going to
@@ -172,16 +179,21 @@ def home_page(environ, start_response):
 
 @route("/favicon.ico")
 def icon(environ, start_response):
-    do_headers(start_response, "200 OK", "image/jpeg")
-    return file("SL4A.jpg").read()
+    actual_file_path = "data/SL4A2.jpg"
+    contents = file(actual_file_path).read()
+    do_headers(start_response, "200 OK", just_guess_type(actual_file_path))
+    return contents
+
 
 
 @route("/environ")
 @route("/environ/*")
 def dump_environ(environ, start_response):
     do_headers(start_response, "200 OK", "text/plain")
-    return "\n".join("%s: %r" % (key, value)
+    text = "os.getcwd(): " + os.getcwd() + "\n\n"
+    text += "\n".join("%s: %r" % (key, value)
                     for key, value in environ.iteritems()) + '\n'
+    return text
 
 
 @route("/static/")
@@ -194,7 +206,7 @@ def list_files(environ, start_response):
                   <a href=%r>download</a><br>"""
     if ALLOWED_FILES:
         lines = [fmt % (path, "/static/" + path, "/download/" + path)
-                 for path in ALLOWED_FILES]
+                 for path in sorted(list(ALLOWED_FILES))]
         html += "\n".join(lines)
     else:
         html += ("(none)<br>\n")
@@ -213,7 +225,7 @@ def do_static(environ, start_response):
     assert not path.endswith("/"), "I won't list that directory."
 
     if path in ALLOWED_FILES:
-        do_headers(start_response, "200 OK", "text/plain")
+        do_headers(start_response, "200 OK", just_guess_type(path))
         return file(path).read()
     else:
         return do_404(environ, start_response)
