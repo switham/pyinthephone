@@ -240,7 +240,11 @@ def do_download(environ, start_response):
     assert not path.endswith("/"), "I don't do that directory."
 
     if path in ALLOWED_FILES:
-        download_path = '"' + path.replace("_", "") + '"'
+        download_path = os.path.basename(path)
+        # download_path = download_path.replace("_", "")
+        if os.path.splitext(download_path)[1] in [".py"]:
+            download_path += ".txt"
+        download_path = '"' + download_path + '"'
         do_headers(start_response, "200 OK", None,
                   ("Content-Disposition",
                     "attachment; filename=%s" % download_path),
