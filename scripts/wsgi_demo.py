@@ -6,7 +6,7 @@ The wsgi_demo directory corresponds to /mnt/sdcard/sl4a on Android --
 scripts run there but are read from    /mnt/sdcard/sl4a/scripts.
 
 Arguments on the command line name files users are allowed to view & download.
-(Paths are relative to the directory where wsgi_demo.py is run.)
+(Paths are relative to the Python working dir, not the scripts directory.)
 
 This code is insecure!
     It displays your Unix environment variables.
@@ -22,6 +22,25 @@ from sys import argv, exit
 from mimetypes import guess_type
 
 
+REQUIRED_ENV_VARS = [
+    "PATH_INFO",
+    "REQUEST_METHOD",
+    ]
+
+INTERESTING_ENV_VARS = [
+    "SERVER_PROTOCOL",
+    "SERVER_SOFTWARE",
+    "SERVER_NAME",
+    "REMOTE_ADDR",
+    "PATH_INFO_TAIL",
+    "SERVER_PORT",
+    "HTTP_HOST",
+    "HTTP_USER_AGENT",
+    "PWD",
+    "REMOTE_HOST",
+    ]
+
+
 header_template = """<!DOCTYPE html>
 <html>
 
@@ -30,6 +49,13 @@ header_template = """<!DOCTYPE html>
 </head>
 
 <body>
+<p/>
+<a href="/" style="font-size: small">home</a> &nbsp; &nbsp; &nbsp;
+<a href="/environ" style="font-size: small">environ</a> &nbsp; &nbsp; &nbsp;
+<a href="/download" style="font-size: small">files</a> &nbsp; &nbsp; &nbsp;
+<a href="/textarea" style="font-size: small">textarea</a>
+<p/>
+<p/>
 """
 
 trailer_template = """
@@ -77,6 +103,12 @@ def route(path):
     Matches (e.g. /foo/* matches /foo/bar) are tried most-specific-first;
         "/foo" is different from "/foo/";
         "/foo/" is more specific than "/foo/*".
+    Exact, directory-like routes (e.g. @route("/foo/")) match the same string
+    without the trailing slash, but not vice-versa, e.g.,
+        @route("/foo/") matches /foo/ or /foo, but
+        @route("/foo") only matches /foo.
+    If you set up *different* routes for the same path except the last
+    slash, results are undefined.
     """
 
     assert path.startswith("/")
@@ -84,9 +116,11 @@ def route(path):
     if path.endswith("/*"):
         assert "*" not in path[:-1]
     
-    def route_setter(function):
-        ROUTES[path] = function
-        return function  # Unchanged.
+    def route_setter(handler):
+        ROUTES[path] = handler
+        if path.endswith("/") and path != "/":
+            ROUTES[path[:-1]] = handler
+        return handler  # Unchanged.
 
     return route_setter
 
@@ -111,9 +145,9 @@ def do_404(environ, start_response, complaint=None):
 def do_route(environ, start_response):
     """
     Route the request to the appropriate callable in the ROUTES table.
-    Sets environ["wildcard_part"] = what matches the * in, e.g.  "/foo/*".
+    Sets environ["PATH_INFO_TAIL"] = what matches the * in, e.g.  "/foo/*".
     """
-    environ["wildcard_part"] = ""
+    environ["PATH_INFO_TAIL"] = ""
     
     path = environ["PATH_INFO"]
     assert "*" not in path, "'*' in path."
@@ -134,7 +168,7 @@ def do_route(environ, start_response):
         if path.startswith(subpath):
             wildpath = subpath + "*"
             if wildpath in ROUTES:
-                environ["wildcard_part"] = "/".join(parts[n:])
+                environ["PATH_INFO_TAIL"] = "/".join(parts[n:])
                 return ROUTES[wildpath](environ, start_response)
 
     return do_404(environ, start_response)
@@ -160,6 +194,9 @@ def do_headers(start_response, status, content_type, *more):
 # second variable is the callable object (see PEP 333).
 def app(environ, start_response):
     try:
+        environ = dict( (key, environ[key])
+                        for key in REQUIRED_ENV_VARS + INTERESTING_ENV_VARS
+                        if key in environ )
         chunks = do_route(environ, start_response)
         if environ["REQUEST_METHOD"] == "HEAD":
             # I am not going to try to return the correct Content-Length.
@@ -174,11 +211,15 @@ def app(environ, start_response):
 
 
 @route("/")
+@route("/home/")
 @route("/index.html")
 @route("/welcome.html")
 def home_page(environ, start_response):
-    do_headers(start_response, "200 OK", "text/plain")
-    return ["Welcome to the script at\n" + os.path.abspath(__file__)]
+    chunks = html_header(environ, title="WSGI Demo--Welcome!")
+    chunks += ["Welcome to the script at\n" + os.path.abspath(__file__)]
+    chunks += html_trailer(environ)
+    do_headers(start_response, "200 OK", "text/html")
+    return chunks
 
 
 @route("/favicon.ico")
@@ -190,14 +231,20 @@ def icon(environ, start_response):
 
 
 
-@route("/environ")
+@route("/environ/")
 @route("/environ/*")
 def dump_environ(environ, start_response):
-    chunks = ["os.getcwd(): " + os.getcwd() + "\n", "\n"]
-    chunks += ["%s: %r\n" % (key, value)
-                    for key, value in environ.iteritems()]
-    do_headers(start_response, "200 OK", "text/plain")
-    return [ "".join(chunks) ]
+    chunks = html_header(environ, title="WSGI Demo--Welcome!")
+
+    chunks += ['<pre style="word-wrap:break-word;">\n']
+    chunks += ["os.getcwd(): " + os.getcwd() + "\n\n"]
+    keys = sorted(environ.keys())
+    chunks += ["%s: %r\n" % (key, environ[key]) for key in keys]
+    chunks += ["</pre>\n"]
+    
+    chunks += html_trailer(environ)
+    do_headers(start_response, "200 OK", "text/html")
+    return chunks
 
 
 @route("/static/")
@@ -219,12 +266,12 @@ def list_files(environ, start_response):
     chunks += html_trailer(environ)
 
     do_headers(start_response, "200 OK", "text/html")
-    return [ "".join(chunks) ]
+    return chunks
 
     
 @route("/static/*")
 def do_static(environ, start_response):
-    path = environ["wildcard_part"]
+    path = environ["PATH_INFO_TAIL"]
     assert not path.endswith("/"), "I won't list that directory."
 
     if path in ALLOWED_FILES:
@@ -236,7 +283,7 @@ def do_static(environ, start_response):
 
 @route("/download/*")
 def do_download(environ, start_response):
-    path = environ["wildcard_part"]
+    path = environ["PATH_INFO_TAIL"]
     assert not path.endswith("/"), "I don't do that directory."
 
     if path in ALLOWED_FILES:
@@ -271,7 +318,7 @@ Go ahead and edit the following:
 We hope you've enjoyed your experience; come again!
 """
 
-@route("/textarea")
+@route("/textarea/")
 def textarea(environ, start_response):
     global n_monkeys
     chunks = html_header(environ, "The Monkey Textarea")
