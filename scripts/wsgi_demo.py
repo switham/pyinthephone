@@ -39,11 +39,11 @@ trailer_template = """
 
 def html_header(environ, title=None):
     title = title or environ["PATH_INFO"]
-    return fill_template(header_template, locals())
+    return [fill_template(header_template, locals())]
 
 
 def html_trailer(environ):
-    return fill_template(trailer_template, locals())
+    return [fill_template(trailer_template, locals())]
  
 
 def fill_template(template, subs_dict):
@@ -101,11 +101,11 @@ def allow_files(files):
 
 def do_404(environ, start_response, complaint=None):
     do_headers(start_response, "404 NOT FOUND", "text/plain")
-    text = "%r not found." % environ["PATH_INFO"]
+    chunks = ["%r not found.\n" % environ["PATH_INFO"]]
     if complaint:
-        text += "\n\nOr maybe it's this:\n\n" + complaint
+        chunks.append("\nOr maybe it's this:\n\n" + complaint + "\n")
 
-    return text
+    return chunks
 
 
 def do_route(environ, start_response):
@@ -147,9 +147,8 @@ def just_guess_type(filename):
 def do_headers(start_response, status, content_type, *more):
     headers = []
     if content_type:
-        headers.append( ('Content-type', content_type) )
+        headers.append( ('Content-Type', content_type) )
     headers += list(more)
-    print '\n'.join(str(header) for header in headers)
     start_response(status, headers)
 
 
@@ -161,7 +160,12 @@ def do_headers(start_response, status, content_type, *more):
 # second variable is the callable object (see PEP 333).
 def app(environ, start_response):
     try:
-        return do_route(environ, start_response)
+        chunks = do_route(environ, start_response)
+        if environ["REQUEST_METHOD"] == "HEAD":
+            # I am not going to try to return the correct Content-Length.
+            return []
+
+        return chunks
     except KeyboardInterrupt:
         exit(1)
         
@@ -174,7 +178,7 @@ def app(environ, start_response):
 @route("/welcome.html")
 def home_page(environ, start_response):
     do_headers(start_response, "200 OK", "text/plain")
-    return "Welcome to the script at\n" + os.path.abspath(__file__)
+    return ["Welcome to the script at\n" + os.path.abspath(__file__)]
 
 
 @route("/favicon.ico")
@@ -182,41 +186,40 @@ def icon(environ, start_response):
     actual_file_path = "data/SL4A2.jpg"
     contents = file(actual_file_path).read()
     do_headers(start_response, "200 OK", just_guess_type(actual_file_path))
-    return contents
+    return [contents]
 
 
 
 @route("/environ")
 @route("/environ/*")
 def dump_environ(environ, start_response):
+    chunks = ["os.getcwd(): " + os.getcwd() + "\n", "\n"]
+    chunks += ["%s: %r\n" % (key, value)
+                    for key, value in environ.iteritems()]
     do_headers(start_response, "200 OK", "text/plain")
-    text = "os.getcwd(): " + os.getcwd() + "\n\n"
-    text += "\n".join("%s: %r" % (key, value)
-                    for key, value in environ.iteritems()) + '\n'
-    return text
+    return [ "".join(chunks) ]
 
 
 @route("/static/")
 @route("/download/")
 def list_files(environ, start_response):
-    html = html_header(environ, "Static Files")
+    chunks = html_header(environ, title="Static Files")
 
-    html += "<h3>Files available here:</h3>\n"
+    chunks.append("<h3>Files available here:</h3>\n")
     fmt = """%s : <a href=%r>view</a>
-                  <a href=%r>download</a><br>"""
+                  <a href=%r>download</a><br>\n"""
     if ALLOWED_FILES:
-        lines = [fmt % (path, "/static/" + path, "/download/" + path)
+        chunks += [fmt % (path, "/static/" + path, "/download/" + path)
                  for path in sorted(list(ALLOWED_FILES))]
-        html += "\n".join(lines)
     else:
-        html += ("(none)<br>\n")
+        chunks.append("(none)<br>\n")
 
-    html += "<br>look <a href='http://www.digiblog.de/2011/04/android-and-the-download-file-headers/'>here</a>, too.\n"
+    chunks.append("<br>look <a href='http://www.digiblog.de/2011/04/android-and-the-download-file-headers/'>here</a>, too.\n")
 
-    html += html_trailer(environ)
+    chunks += html_trailer(environ)
 
     do_headers(start_response, "200 OK", "text/html")
-    return html
+    return [ "".join(chunks) ]
 
     
 @route("/static/*")
@@ -226,7 +229,7 @@ def do_static(environ, start_response):
 
     if path in ALLOWED_FILES:
         do_headers(start_response, "200 OK", just_guess_type(path))
-        return file(path).read()
+        return [file(path).read()]
     else:
         return do_404(environ, start_response)
 
@@ -243,7 +246,7 @@ def do_download(environ, start_response):
                     "attachment; filename=%s" % download_path),
                   ("Content-Type", "application/octet-stream"),
             )
-        return file(path).read()
+        return [file(path).read()]
     else:
         return do_404(environ, start_response)
 
@@ -264,17 +267,21 @@ Go ahead and edit the following:
 We hope you've enjoyed your experience; come again!
 """
 
+n_monkeys = 0
+
 @route("/textarea")
 def textarea(environ, start_response):
-    html = html_header(environ, "The Monkey Textarea")
+    global n_monkeys
+    chunks = html_header(environ, "The Monkey Textarea")
 
-    textarea_text = "Welcome to the Monkey Textarea!"
-    html += fill_template(textarea_body, locals())
+    n_monkeys += 1
+    textarea_text = "Welcome to Monkey Textarea " + str(n_monkeys)
+    chunks.append(fill_template(textarea_body, locals()))
 
-    html += html_trailer(environ)
+    chunks += html_trailer(environ)
 
     do_headers(start_response, "200 OK", "text/html")
-    return html
+    return [ "".join(chunks) ]
 
 
 # REQUEST_METHOD: GET

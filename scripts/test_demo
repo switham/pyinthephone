@@ -1,0 +1,9 @@
+#!/bin/sh
+# test content-type and content-length of outputs of wsgi_self_serv.py.
+cat scripts/demo_url_list | while read url; do
+  curl -D demo_test_tmp http://127.0.0.1:8000$url >/dev/null 2>&1
+  echo $url
+  echo "    $(grep -i content-type demo_test_tmp)"
+  echo "    $(grep -i content-length demo_test_tmp)"
+ done
+rm demo_test_tmp

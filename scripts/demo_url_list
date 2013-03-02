@@ -1,0 +1,16 @@
+/
+/download/
+/environ
+/textarea
+/static/scripts/wsgi_demo.py
+/static/scripts/wsgi_self_serv.py
+/static/data/SL4A.jpg
+/static/data/SL4A2.jpg
+/static/data/foo.zip
+/static/data/foo.txt
+/download/scripts/wsgi_demo.py
+/download/scripts/wsgi_self_serv.py
+/download/data/SL4A.jpg
+/download/data/SL4A2.jpg
+/download/data/foo.zip
+/download/data/foo.txt
