@@ -267,15 +267,12 @@ Go ahead and edit the following:
 We hope you've enjoyed your experience; come again!
 """
 
-n_monkeys = 0
-
 @route("/textarea")
 def textarea(environ, start_response):
     global n_monkeys
     chunks = html_header(environ, "The Monkey Textarea")
 
-    n_monkeys += 1
-    textarea_text = "Welcome to Monkey Textarea " + str(n_monkeys)
+    textarea_text = "Welcome to the Monkey Textarea!"
     chunks.append(fill_template(textarea_body, locals()))
 
     chunks += html_trailer(environ)
