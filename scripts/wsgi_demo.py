@@ -32,6 +32,7 @@ INTERESTING_ENV_VARS = [
     "SERVER_SOFTWARE",
     "SERVER_NAME",
     "REMOTE_ADDR",
+    "PATH_INFO_MATCHED",
     "PATH_INFO_TAIL",
     "SERVER_PORT",
     "HTTP_HOST",
@@ -88,16 +89,18 @@ def fill_template(template, subs_dict):
 
 ROUTES = {}
 
-def route(path):
+def route(path_pattern):
     """
-    path should either
+    path_pattern should either
        start with "/" and end with "/*" --wildcard match-- or
        start with "/" but not include "*" --exact match.
     Pattern of use:
        @route("/")
        @route("/index.html")
        def home_page(environ, start_response):
-           # home_page() can look at environ["PATH_INFO"] to see path.
+           # home_page(), the handler, will have an environ including
+           # PATH_INFO, PATH_INFO_MATCHED, and PATH_INFO_TAIL; see
+           # match_route(), below.
            ...
            return text
     Matches (e.g. /foo/* matches /foo/bar) are tried most-specific-first;
@@ -107,19 +110,20 @@ def route(path):
     without the trailing slash, but not vice-versa, e.g.,
         @route("/foo/") matches /foo/ or /foo, but
         @route("/foo") only matches /foo.
-    If you set up *different* routes for the same path except the last
-    slash, results are undefined.
+    If you set up *different* routes for the same path_pattern except the
+    last slash, results are undefined.
     """
 
-    assert path.startswith("/")
-    assert path.endswith("/*") or "*" not in path
-    if path.endswith("/*"):
-        assert "*" not in path[:-1]
+    assert path_pattern.startswith("/")
+    assert path_pattern.endswith("/*") or "*" not in path_pattern
+    if path_pattern.endswith("/*"):
+        assert "*" not in path_pattern[:-1]
     
     def route_setter(handler):
-        ROUTES[path] = handler
-        if path.endswith("/") and path != "/":
-            ROUTES[path[:-1]] = handler
+        ROUTES[path_pattern] = handler
+        if path_pattern.endswith("/") and path_pattern != "/":
+            # If, e.g., "/foo/", also match "/foo".
+            ROUTES[path_pattern[:-1]] = handler
         return handler  # Unchanged.
 
     return route_setter
@@ -142,23 +146,26 @@ def do_404(environ, start_response, complaint=None):
     return chunks
 
 
-def do_route(environ, start_response):
+def match_route(path):
     """
-    Route the request to the appropriate callable in the ROUTES table.
-    Sets environ["PATH_INFO_TAIL"] = what matches the * in, e.g.  "/foo/*".
+    Match path to the appropriate handler callable in the ROUTES table.
+    If found:
+        return handler, matched, tail.
+        # matched is the part of PATH_INFO that matched the pattern in
+        #     an @route(), up to but not including any trailing '*'.
+        # tail is whatever matched a trailing '*', or else an empty string.
+    else:
+        return None, None, None
     """
-    environ["PATH_INFO_TAIL"] = ""
-    
-    path = environ["PATH_INFO"]
     assert "*" not in path, "'*' in path."
     assert "//" not in path, "'//' in path."
     
-    parts = environ["PATH_INFO"].split("/")
+    parts = path.split("/")
     assert ".." not in parts, "'..' is a no-no."
     assert parts and parts[0] == '', "path should start with /"
 
     if path in ROUTES:  # All exact matches are caught here.
-        return ROUTES[path](environ, start_response)
+        return ROUTES[path], path, ""
 
     for n in range(len(parts) - 1, 0, -1):
         if parts[n] == "":  # foo/ should not match foo/* below.
@@ -168,10 +175,26 @@ def do_route(environ, start_response):
         if path.startswith(subpath):
             wildpath = subpath + "*"
             if wildpath in ROUTES:
-                environ["PATH_INFO_TAIL"] = "/".join(parts[n:])
-                return ROUTES[wildpath](environ, start_response)
+                return ROUTES[wildpath], subpath, "/".join(parts[n:])
 
-    return do_404(environ, start_response)
+    return None, None, None
+
+
+def do_route(environ, start_response):
+    """
+    Route the request to the appropriate handler callable in the ROUTES table.
+    Pass the handler an environ dict with "PATH_INFO_MATCHED" and
+    "PATH_INFO_TAIL" entries added, corresponding to "matched" and "tail"
+    from match_route().
+    """
+    handler, matched, tail = match_route(environ["PATH_INFO"])
+    if not handler:
+        return do_404(environ, start_response)
+
+    handler_environ = dict(environ)
+    handler_environ["PATH_INFO_MATCHED"] = matched
+    handler_environ["PATH_INFO_TAIL"] = tail
+    return handler(handler_environ, start_response)
 
 
 def just_guess_type(filename):
@@ -272,7 +295,8 @@ def list_files(environ, start_response):
 @route("/static/*")
 def do_static(environ, start_response):
     path = environ["PATH_INFO_TAIL"]
-    assert not path.endswith("/"), "I won't list that directory."
+    assert not path.endswith("/"), \
+        "I don't list directories under " + environ["PATH_INFO_MATCHED"]
 
     if path in ALLOWED_FILES:
         do_headers(start_response, "200 OK", just_guess_type(path))
@@ -284,7 +308,8 @@ def do_static(environ, start_response):
 @route("/download/*")
 def do_download(environ, start_response):
     path = environ["PATH_INFO_TAIL"]
-    assert not path.endswith("/"), "I don't do that directory."
+    assert not path.endswith("/"), \
+        "I don't list directories under " + environ["PATH_INFO_MATCHED"]
 
     if path in ALLOWED_FILES:
         download_path = os.path.basename(path)
