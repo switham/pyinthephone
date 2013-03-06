@@ -9,7 +9,7 @@ Arguments on the command line name files users are allowed to view & download.
 (Paths are relative to the Python working dir, not the scripts directory.)
 
 This code is insecure!
-    It may display some Unix environment variables.
+    It displays at least one Unix environment variables (PWD).
     It shows Python exceptions on the 404 page.
     It may be vulnerable to code-injection attacts
         (although I made some vain gestures).
