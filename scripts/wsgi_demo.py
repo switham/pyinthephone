@@ -9,10 +9,10 @@ Arguments on the command line name files users are allowed to view & download.
 (Paths are relative to the Python working dir, not the scripts directory.)
 
 This code is insecure!
-    It displays your Unix environment variables.
+    It may display some Unix environment variables.
     It shows Python exceptions on the 404 page.
-    It's vulnerable to code-injection attacts (although I made some vain
-    gestures).
+    It may be vulnerable to code-injection attacts
+        (although I made some vain gestures).
     wsgi_self_serv.py makes this script display its own source code.
 """
 
@@ -20,11 +20,14 @@ from wsgiref.simple_server import make_server
 import os
 from sys import argv, exit
 from mimetypes import guess_type
+import cgi
 
 
 REQUIRED_ENV_VARS = [
     "PATH_INFO",
     "REQUEST_METHOD",
+    "wsgi.input",
+    "CONTENT_LENGTH",
     ]
 
 INTERESTING_ENV_VARS = [
@@ -46,7 +49,7 @@ header_template = """<!DOCTYPE html>
 <html>
 
 <head>
-<title>{{title}}</title>
+<title>%(title)s</title>
 </head>
 
 <body>
@@ -71,20 +74,30 @@ def html_header(environ, title=None):
 
 def html_trailer(environ):
     return [fill_template(trailer_template, locals())]
- 
+
+
+class HTML_safe_dict(object):
+    """
+    An instance of this class forms an html-safe, string, read-only version
+    of a given dict.  Outputs of this dict have their quotation marks escaped
+    so that they can be used within html attribute strings.  No self.get().
+    This is not suitable for URL query parameters.
+    """
+    def __init__(self, d):
+        assert isinstance(d, dict)
+        self.d = d
+
+    def __getitem__(self, i):
+        return cgi.escape(str(self.d[i]), True)
+
 
 def fill_template(template, subs_dict):
     """
     If dict contains, e.g., "A": "foo", then
-    "{{A}}" in template will be replaced by "foo".
-    Not at all smart about escaping, recursion and whatnot.
+    "%(A)s" in template will be replaced by "foo".
+    Every element accessed is turned to a string and then html-escaped.
     """
-    text = template
-    for key, value in subs_dict.iteritems():
-        # dict may contain junk non-text items:
-        if isinstance(value, basestring):
-            text = text.replace("{{" + key + "}}", value)
-    return text
+    return template % HTML_safe_dict(subs_dict)
     
 
 ROUTES = {}
@@ -333,7 +346,7 @@ Go ahead and edit the following:
 
 <form method="post" action="">
 <textarea name="comments" cols=80 style="font-family: monospace;">
-{{textarea_text}}
+%(textarea_text)s
 </textarea><br>
 <input type="submit" value="run" />
 </form>
@@ -343,13 +356,28 @@ Go ahead and edit the following:
 We hope you've enjoyed your experience; come again!
 """
 
+
+def read_wsgi_input(environ):
+    try:
+        length = int(environ.get('CONTENT_LENGTH', '0'))
+    except ValueError:
+        length = 0
+    if length:
+        return environ['wsgi.input'].read(length)
+    else:
+        return ""
+    
+
 @route("/textarea/")
 def textarea(environ, start_response):
-    global n_monkeys
     chunks = html_header(environ, "The Monkey Textarea")
 
-    textarea_text = "Welcome to the Monkey Textarea!"
-    chunks.append(fill_template(textarea_body, locals()))
+    if environ["REQUEST_METHOD"] == "POST":
+        chunks += ['<pre style="word-wrap:break-word;">\n',
+                   cgi.escape(read_wsgi_input(environ)), "</pre>\n"]
+    else:
+        textarea_text = "Welcome to the <dangerous Monkey Textarea!"
+        chunks.append(fill_template(textarea_body, locals()))
 
     chunks += html_trailer(environ)
 
