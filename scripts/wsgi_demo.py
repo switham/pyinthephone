@@ -9,7 +9,7 @@ Arguments on the command line name files users are allowed to view & download.
 (Paths are relative to the Python working dir, not the scripts directory.)
 
 This code is insecure!
-    It displays at least one Unix environment variables (PWD).
+    It displays at least one Unix environment variable (PWD).
     It shows Python exceptions on the 404 page.
     It may be vulnerable to code-injection attacts
         (although I made some vain gestures).
@@ -26,6 +26,7 @@ import cgi
 REQUIRED_ENV_VARS = [
     "PATH_INFO",
     "REQUEST_METHOD",
+    "QUERY_STRING",
     "wsgi.input",
     "CONTENT_LENGTH",
     ]
@@ -340,6 +341,18 @@ def do_download(environ, start_response):
         return do_404(environ, start_response)
 
 
+def get_POST_FieldStorage(environ):
+    # cribbed from
+    # http://stackoverflow.com/questions/530526/accessing-post-data-from-wsgi
+    post_env = environ.copy()
+    post_env["QUERY_STRING"] = ""
+    return cgi.FieldStorage(
+        fp=environ["wsgi.input"],
+        environ=post_env,
+        keep_blank_values=True
+        )
+
+
 textarea_body = """
 Go ahead and edit the following:
 <p>
@@ -373,8 +386,11 @@ def textarea(environ, start_response):
     chunks = html_header(environ, "The Monkey Textarea")
 
     if environ["REQUEST_METHOD"] == "POST":
+        fieldstore = get_POST_FieldStorage(environ)
+        d = dict((key, fieldstore.getvalue(key))
+                 for key in fieldstore.keys())
         chunks += ['<pre style="word-wrap:break-word;">\n',
-                   cgi.escape(read_wsgi_input(environ)), "</pre>\n"]
+                   cgi.escape(str(d)), "</pre>\n"]
     else:
         textarea_text = "Welcome to the <dangerous Monkey Textarea!"
         chunks.append(fill_template(textarea_body, locals()))
