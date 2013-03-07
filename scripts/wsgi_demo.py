@@ -79,26 +79,36 @@ def html_trailer(environ):
 
 class HTML_safe_dict(object):
     """
-    An instance of this class forms an html-safe, string, read-only version
-    of a given dict.  Outputs of this dict have their quotation marks escaped
-    so that they can be used within html attribute strings.  No self.get().
+    An instance of this class forms a dict-like wrapper around 1 or 2 dicts.
+    If the element requested is in safe_dict:
+        an html-safe, string version of the element is returned.
+        These safe outputs have their quotation marks escaped
+        so that they can be used within html attribute strings.
+    else if the element is in raw_dict:
+        the unchanged element of raw_dict is returned.
+
     This is not suitable for URL query parameters.
     """
-    def __init__(self, d):
-        assert isinstance(d, dict)
-        self.d = d
+    def __init__(self, safe_dict, raw_dict={}):
+        assert isinstance(safe_dict, dict)
+        assert isinstance(raw_dict, dict)
+        self.safe_dict = safe_dict
+        self.raw_dict = raw_dict
 
-    def __getitem__(self, i):
-        return cgi.escape(str(self.d[i]), True)
+    def __getitem__(self, key):
+        if key in self.safe_dict:
+            return cgi.escape(str(self.safe_dict[key]), True)
+        else:
+            return self.raw_dict[key]
 
 
-def fill_template(template, subs_dict):
+def fill_template(template, safe_dict, raw_dict={}):
     """
     If dict contains, e.g., "A": "foo", then
     "%(A)s" in template will be replaced by "foo".
-    Every element accessed is turned to a string and then html-escaped.
+    See HTML_safe_dict above for treatment of safe_dict and raw_dict elements.
     """
-    return template % HTML_safe_dict(subs_dict)
+    return template % HTML_safe_dict(safe_dict, raw_dict)
     
 
 ROUTES = {}
@@ -353,12 +363,19 @@ def get_POST_FieldStorage(environ):
         )
 
 
+def get_POST_fieldvalues(environ):
+    fieldstore = get_POST_FieldStorage(environ)
+    return dict((key, fieldstore.getvalue(key)) for key in fieldstore.keys())
+
+
+TEXTAREA_WIDTH = 80
 textarea_body = """
 Go ahead and edit the following:
 <p>
 
 <form method="post" action="">
-<textarea name="comments" cols=80 style="font-family: monospace;">
+<textarea name="input_text" cols=%(width)s
+    style="font-family: monospace; font-size: small;">
 %(textarea_text)s
 </textarea><br>
 <input type="submit" value="run" />
@@ -366,34 +383,43 @@ Go ahead and edit the following:
 
 <p>
 
+<table><tr><td>
+<pre style="font-family: monospace; font-size: small; word-wrap:break-word;"
+>%(blank_line)s
+<div style="background-color:#e8e8e8;">%(text)s
+</div>
+</pre>
+</td></tr></table>
+
+<hr>
+
 We hope you've enjoyed your experience; come again!
 """
 
+def simple_wrap(text, width):
+    results = []
+    for line in text.replace('\r\n', '\n').replace('\r', '\n').split('\n'):
+        while len(line) > width:
+            results.append(line[:width])
+            line = line[width:]
+        results.append(line)
+    return '\n'.join(results)
 
-def read_wsgi_input(environ):
-    try:
-        length = int(environ.get('CONTENT_LENGTH', '0'))
-    except ValueError:
-        length = 0
-    if length:
-        return environ['wsgi.input'].read(length)
-    else:
-        return ""
-    
 
 @route("/textarea/")
 def textarea(environ, start_response):
     chunks = html_header(environ, "The Monkey Textarea")
 
+    width = TEXTAREA_WIDTH
+    raw_dict = {"blank_line": "&nbsp;" * width}
     if environ["REQUEST_METHOD"] == "POST":
-        fieldstore = get_POST_FieldStorage(environ)
-        d = dict((key, fieldstore.getvalue(key))
-                 for key in fieldstore.keys())
-        chunks += ['<pre style="word-wrap:break-word;">\n',
-                   cgi.escape(str(d)), "</pre>\n"]
+        values = get_POST_fieldvalues(environ)
+        chunks += ['<pre style="font-family: monospace; word-wrap:break-word; background-color:#e8e8e8;">\n',
+                   cgi.escape(values["input_text"]), "</pre>\n"]
     else:
         textarea_text = "Welcome to the <dangerous Monkey Textarea!"
-        chunks.append(fill_template(textarea_body, locals()))
+        text = simple_wrap("1234567890" * 9, width)
+        chunks.append(fill_template(textarea_body, locals(), raw_dict))
 
     chunks += html_trailer(environ)
 
