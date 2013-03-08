@@ -456,7 +456,7 @@ def interpret(code_text):
         if tree.body and isinstance(tree.body[-1], ast.Expr):
             last_line = ast.Interactive(tree.body[-1:])
             tree.body = tree.body[:-1]
-            code2 = compile(last_line, "<your input", "single")
+            code2 = compile(last_line, "<your input>", "single")
         if tree.body:
             code1 = compile(tree, "<your input>", "exec")
 
