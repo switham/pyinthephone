@@ -380,10 +380,11 @@ def get_POST_fieldvalues(environ):
 PYTHON_WIDTH = 80
 
 PYTHON_TOP = """
-<hr>
-<table><tr><td>
+<table style="margin:0px; padding:0px">\
+<tr style="margin:0px; padding:0px">\
+<td style="margin:0px;">
+<hr style="margin:0px; padding:0px;">
 <pre style="font-family: monospace; font-size: small;">\
-%(blank_line)s
 """
 
 PYTHON_FORM = """\
@@ -401,9 +402,10 @@ PYTHON_COMPLETED = """\
 """
 
 PYTHON_BOTTOM = """\
+<hr>
+%(blank_line)s
 </pre>
 </td></tr></table>
-<hr>
 """
 
 def simple_wrap(text, width, strip=False):
@@ -503,7 +505,7 @@ def do_python(environ, start_response):
     for transaction in COMPLETED_BELOW:
         chunks.append(render_transaction(transaction, PYTHON_WIDTH))
 
-    chunks.append(PYTHON_BOTTOM)
+    chunks.append(fill_template(PYTHON_BOTTOM, {}, raw_dict))
     chunks += html_trailer(environ)
 
     do_headers(start_response, "200 OK", "text/html")
