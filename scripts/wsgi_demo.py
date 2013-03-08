@@ -19,9 +19,12 @@ This code is insecure!
 from wsgiref.simple_server import make_server
 import os
 from sys import argv, exit, stderr
+import sys
 from mimetypes import guess_type
 import cgi
 import traceback
+import StringIO
+import ast
 
 
 REQUIRED_ENV_VARS = [
@@ -373,27 +376,19 @@ def get_POST_fieldvalues(environ):
 
 TEXTAREA_WIDTH = 80
 
-
-
 textarea_top = """
 <hr>
 <table><tr><td>
 <pre style="font-family: monospace; font-size: small;">%(blank_line)s
 """
 
-textarea_form = """
-</pre>
-
-<form method="post" action="">
+textarea_form = """<form method="post" action="">
 <textarea name="input_text" cols=%(width)s
     style="font-family: monospace; font-size: small;">
 %(textarea_text)s
 </textarea><br>
 <input type="submit" value="run" />
-</form>
-
-<pre style="font-family: monospace; font-size: small;">
-"""
+</form>"""
 
 textarea_completed = """<div style="background-color:%(color)s;">%(text)s</div>
 """
@@ -414,18 +409,52 @@ def simple_wrap(text, width):
     return '\n'.join(results)
 
 
+TEXTAREA_GLOBALS = {}  # exec code in TEXTAREA_GLOBALS
 COMPLETED_ABOVE = []
 COMPLETED_BELOW = []
 
-def render_input_response(input, response, width):
+def render_transaction(transaction, width):
+    input, response, trace = transaction
     chunks = []
-    for text, color in (input, "#e4e4e4"), (response, "white"):
-        chunks.append(fill_template(textarea_completed, locals()))
+    sequence = (input, "#e4e4e4"), (response, "white"), (trace, "#FFe4e4")
+    for text, color in sequence:
+        if text != None:
+            chunks.append(fill_template(textarea_completed, locals()))
     return "".join(chunks)
 
 
 def render_form(textarea_text, width):
     return fill_template(textarea_form, locals())
+
+
+def interpret(code_text):
+    saved_stdout = sys.stdout
+    saved_stderr = sys.stderr
+    output = StringIO.StringIO()
+    trace = None
+    try:
+        sys.stdout = output
+        sys.stderr = output
+        
+        tree = ast.parse(code_text, "<your input>")
+        code1 = code2 = None
+        if tree.body and isinstance(tree.body[-1], ast.Expr):
+            last_line = ast.Interactive(tree.body[-1:])
+            tree.body = tree.body[:-1]
+            code2 = compile(last_line, "<your input", "single")
+        if tree.body:
+            code1 = compile(tree, "<your input>", "exec")
+
+        if code1:
+            exec code1 in TEXTAREA_GLOBALS
+        if code2:
+            exec code2 in TEXTAREA_GLOBALS
+    except Exception:
+        trace = traceback.format_exc()
+    finally:
+        sys.stdout = saved_stdout
+        sys.stderr = saved_stderr
+    return output.getvalue(), trace
 
 
 @route("/textarea/")
@@ -438,17 +467,17 @@ def textarea(environ, start_response):
         # Modify data before rendering.
         values = get_POST_fieldvalues(environ)
         input = values["input_text"]
-        response = "Well all right then."
-        COMPLETED_ABOVE.append( (input, response) )
+        response, trace = interpret(input)
+        COMPLETED_ABOVE.append( (input, response, trace) )
 
-    for (input, response) in COMPLETED_ABOVE:
-        chunks.append(render_input_response(input, response, TEXTAREA_WIDTH))
+    for transaction in COMPLETED_ABOVE:
+        chunks.append(render_transaction(transaction, TEXTAREA_WIDTH))
 
     textarea_text = """print "Hello, World!" """
     chunks.append(render_form(textarea_text, TEXTAREA_WIDTH))
                       
-    for input, response in COMPLETED_BELOW:
-        chunks.append(render_input_response(input, response, TEXTAREA_WIDTH))
+    for transaction in COMPLETED_BELOW:
+        chunks.append(render_transaction(transaction, TEXTAREA_WIDTH))
 
     chunks.append(textarea_bottom)
     chunks += html_trailer(environ)

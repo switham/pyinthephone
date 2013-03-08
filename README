@@ -1,5 +1,5 @@
 wsgi_demo.py: Does lots of things:
-    Steals fill_template() and textarea demo from wsgi_textarea.py.
+    fill_template() and textarea demo was originally in wsgi_textarea.py.
     Adds a "@route()" decorator that does wildcards.
     Serves the following routes:
     /
@@ -9,10 +9,10 @@ wsgi_demo.py: Does lots of things:
     /welcome.html
         Says hello with script path (like wsgi_hello.py) using fill_template().
     /textarea
-        Textarea demo taken from wsgi_textarea.py.
+        Textarea demo now adds an input/response pair when you click "run".
     /environ
       	Prints out the environ dictionary.  This is a little insecure
-        since it includes all your Unix environment variables.
+        since it includes some of your Unix environment variables.
     /static/
     /download/
       	Shows a listing of files that you "allowed" on the command line when
