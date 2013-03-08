@@ -18,9 +18,10 @@ This code is insecure!
 
 from wsgiref.simple_server import make_server
 import os
-from sys import argv, exit
+from sys import argv, exit, stderr
 from mimetypes import guess_type
 import cgi
+import traceback
 
 
 REQUIRED_ENV_VARS = [
@@ -254,7 +255,9 @@ def app(environ, start_response):
         exit(1)
         
     except Exception, e:
-        return do_404(environ, start_response, complaint=repr(e))
+        return do_404(environ, start_response,
+                      complaint=traceback.format_exc())
+        # return do_404(environ, start_response, complaint=repr(e))
 
 
 @route("/")
@@ -369,9 +372,17 @@ def get_POST_fieldvalues(environ):
 
 
 TEXTAREA_WIDTH = 80
-textarea_body = """
-Go ahead and edit the following:
-<p>
+
+
+
+textarea_top = """
+<hr>
+<table><tr><td>
+<pre style="font-family: monospace; font-size: small;">%(blank_line)s
+"""
+
+textarea_form = """
+</pre>
 
 <form method="post" action="">
 <textarea name="input_text" cols=%(width)s
@@ -381,19 +392,16 @@ Go ahead and edit the following:
 <input type="submit" value="run" />
 </form>
 
-<p>
+<pre style="font-family: monospace; font-size: small;">
+"""
 
-<table><tr><td>
-<pre style="font-family: monospace; font-size: small; word-wrap:break-word;"
->%(blank_line)s
-<div style="background-color:#e8e8e8;">%(text)s
-</div>
+textarea_completed = """<div style="background-color:%(color)s;">%(text)s</div>
+"""
+
+textarea_bottom = """
 </pre>
 </td></tr></table>
-
 <hr>
-
-We hope you've enjoyed your experience; come again!
 """
 
 def simple_wrap(text, width):
@@ -406,21 +414,43 @@ def simple_wrap(text, width):
     return '\n'.join(results)
 
 
+COMPLETED_ABOVE = []
+COMPLETED_BELOW = []
+
+def render_input_response(input, response, width):
+    chunks = []
+    for text, color in (input, "#e4e4e4"), (response, "white"):
+        chunks.append(fill_template(textarea_completed, locals()))
+    return "".join(chunks)
+
+
+def render_form(textarea_text, width):
+    return fill_template(textarea_form, locals())
+
+
 @route("/textarea/")
 def textarea(environ, start_response):
     chunks = html_header(environ, "The Monkey Textarea")
+    raw_dict = {"blank_line": "&nbsp;" * TEXTAREA_WIDTH}
+    chunks.append(fill_template(textarea_top, {}, raw_dict))
 
-    width = TEXTAREA_WIDTH
-    raw_dict = {"blank_line": "&nbsp;" * width}
     if environ["REQUEST_METHOD"] == "POST":
+        # Modify data before rendering.
         values = get_POST_fieldvalues(environ)
-        chunks += ['<pre style="font-family: monospace; word-wrap:break-word; background-color:#e8e8e8;">\n',
-                   cgi.escape(values["input_text"]), "</pre>\n"]
-    else:
-        textarea_text = "Welcome to the <dangerous Monkey Textarea!"
-        text = simple_wrap("1234567890" * 9, width)
-        chunks.append(fill_template(textarea_body, locals(), raw_dict))
+        input = values["input_text"]
+        response = "Well all right then."
+        COMPLETED_ABOVE.append( (input, response) )
 
+    for (input, response) in COMPLETED_ABOVE:
+        chunks.append(render_input_response(input, response, TEXTAREA_WIDTH))
+
+    textarea_text = """print "Hello, World!" """
+    chunks.append(render_form(textarea_text, TEXTAREA_WIDTH))
+                      
+    for input, response in COMPLETED_BELOW:
+        chunks.append(render_input_response(input, response, TEXTAREA_WIDTH))
+
+    chunks.append(textarea_bottom)
     chunks += html_trailer(environ)
 
     do_headers(start_response, "200 OK", "text/html")
