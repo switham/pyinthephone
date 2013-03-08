@@ -397,7 +397,7 @@ PYTHON_FORM = """\
 """
 
 PYTHON_COMPLETED = """\
-<div style="background-color:%(color)s;">%(text)s</div>
+<div style="background-color:%(color)s;">%(text)s</div>\
 """
 
 PYTHON_BOTTOM = """\
@@ -427,6 +427,8 @@ COMPLETED_BELOW = []
 def render_transaction(transaction, width):
     input, response, trace = transaction
     chunks = []
+    if not response and not trace:
+        response = "\n"
     for text, color, strip in [
             (input, "#e4e4e4", True),
             (response, "white", False),
