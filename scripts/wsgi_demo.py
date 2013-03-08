@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 """
 wsgi_demo.py--WSGI server with templating, a routing decorator, and some demos.
-RUN FROM THE wsgi_demo directory: scripts/wsgi_demo.py [files...]
+Based on wsgiref.simple_server
+    and the example code at http://docs.python.org/2/library/wsgiref.html
+
+Run this from the wsgi_demo directory like this:
+    scripts/wsgi_demo.py [files...]
 The wsgi_demo directory corresponds to /mnt/sdcard/sl4a on Android --
 scripts run there but are read from    /mnt/sdcard/sl4a/scripts.
 
@@ -9,9 +13,11 @@ Arguments on the command line name files users are allowed to view & download.
 (Paths are relative to the Python working dir, not the scripts directory.)
 
 This code is insecure!
+    It runs on your public IP address instead of 127.0.0.1.
     It displays at least one Unix environment variable (PWD).
-    It shows Python exceptions on the 404 page.
-    It may be vulnerable to code-injection attacts
+    It shows Python stack traces on the python and 404 pages.
+    It runs any Python code you give it.
+    Besides python, it may be vulnerable to code-injection attacts
         (although I made some vain gestures).
     wsgi_self_serv.py makes this script display its own source code.
 """
@@ -62,7 +68,7 @@ header_template = """<!DOCTYPE html>
 <a href="/" style="font-size: small">home</a> &nbsp; &nbsp; &nbsp;
 <a href="/environ" style="font-size: small">environ</a> &nbsp; &nbsp; &nbsp;
 <a href="/download" style="font-size: small">files</a> &nbsp; &nbsp; &nbsp;
-<a href="/textarea" style="font-size: small">textarea</a>
+<a href="/python#input" style="font-size: small">python</a>
 <p/>
 <p/>
 """
@@ -260,7 +266,6 @@ def app(environ, start_response):
     except Exception, e:
         return do_404(environ, start_response,
                       complaint=traceback.format_exc())
-        # return do_404(environ, start_response, complaint=repr(e))
 
 
 @route("/")
@@ -313,8 +318,6 @@ def list_files(environ, start_response):
                  for path in sorted(list(ALLOWED_FILES))]
     else:
         chunks.append("(none)<br>\n")
-
-    chunks.append("<br>look <a href='http://www.digiblog.de/2011/04/android-and-the-download-file-headers/'>here</a>, too.\n")
 
     chunks += html_trailer(environ)
 
@@ -374,57 +377,69 @@ def get_POST_fieldvalues(environ):
     return dict((key, fieldstore.getvalue(key)) for key in fieldstore.keys())
 
 
-TEXTAREA_WIDTH = 80
+PYTHON_WIDTH = 80
 
-textarea_top = """
+PYTHON_TOP = """
 <hr>
 <table><tr><td>
-<pre style="font-family: monospace; font-size: small;">%(blank_line)s
+<pre style="font-family: monospace; font-size: small;">\
+%(blank_line)s
 """
 
-textarea_form = """<form method="post" action="">
+PYTHON_FORM = """\
+<a id="input"/>\
+<form method="post" action="">\
 <textarea name="input_text" cols=%(width)s
     style="font-family: monospace; font-size: small;">
-%(textarea_text)s
-</textarea><br>
-<input type="submit" value="run" />
-</form>"""
-
-textarea_completed = """<div style="background-color:%(color)s;">%(text)s</div>
+%(python_text)s</textarea>
+<input type="submit" value="run" />\
+</form>\
 """
 
-textarea_bottom = """
+PYTHON_COMPLETED = """\
+<div style="background-color:%(color)s;">%(text)s</div>
+"""
+
+PYTHON_BOTTOM = """\
 </pre>
 </td></tr></table>
 <hr>
 """
 
-def simple_wrap(text, width):
+def simple_wrap(text, width, strip=False):
     results = []
     for line in text.replace('\r\n', '\n').replace('\r', '\n').split('\n'):
         while len(line) > width:
             results.append(line[:width])
             line = line[width:]
         results.append(line)
+    while results and strip and results[0].strip() == "":
+        results = results[1:]
+    while results and strip and results[-1].strip() == "":
+        results = results[:-1]
     return '\n'.join(results)
 
 
-TEXTAREA_GLOBALS = {}  # exec code in TEXTAREA_GLOBALS
+PYTHON_GLOBALS = {}  # exec code in PYTHON_GLOBALS
 COMPLETED_ABOVE = []
 COMPLETED_BELOW = []
 
 def render_transaction(transaction, width):
     input, response, trace = transaction
     chunks = []
-    sequence = (input, "#e4e4e4"), (response, "white"), (trace, "#FFe4e4")
-    for text, color in sequence:
+    for text, color, strip in [
+            (input, "#e4e4e4", True),
+            (response, "white", False),
+            (trace, "#FFe4e4", False),
+            ]:
         if text != None:
-            chunks.append(fill_template(textarea_completed, locals()))
+            text = simple_wrap(text, width, strip)
+            chunks.append(fill_template(PYTHON_COMPLETED, locals()))
     return "".join(chunks)
 
 
-def render_form(textarea_text, width):
-    return fill_template(textarea_form, locals())
+def render_form(python_text, width):
+    return fill_template(PYTHON_FORM, locals())
 
 
 def interpret(code_text):
@@ -446,9 +461,9 @@ def interpret(code_text):
             code1 = compile(tree, "<your input>", "exec")
 
         if code1:
-            exec code1 in TEXTAREA_GLOBALS
+            exec code1 in PYTHON_GLOBALS
         if code2:
-            exec code2 in TEXTAREA_GLOBALS
+            exec code2 in PYTHON_GLOBALS
     except Exception:
         trace = traceback.format_exc()
     finally:
@@ -457,11 +472,15 @@ def interpret(code_text):
     return output.getvalue(), trace
 
 
-@route("/textarea/")
-def textarea(environ, start_response):
-    chunks = html_header(environ, "The Monkey Textarea")
-    raw_dict = {"blank_line": "&nbsp;" * TEXTAREA_WIDTH}
-    chunks.append(fill_template(textarea_top, {}, raw_dict))
+PYTHON_TEXT = """print "Hello, World, I'm Python!" """
+
+@route("/python/")
+def do_python(environ, start_response):
+    global PYTHON_TEXT
+    
+    chunks = html_header(environ, "Python Interpreter")
+    raw_dict = {"blank_line": "&nbsp;" * PYTHON_WIDTH}
+    chunks.append(fill_template(PYTHON_TOP, {}, raw_dict))
 
     if environ["REQUEST_METHOD"] == "POST":
         # Modify data before rendering.
@@ -469,17 +488,20 @@ def textarea(environ, start_response):
         input = values["input_text"]
         response, trace = interpret(input)
         COMPLETED_ABOVE.append( (input, response, trace) )
+        if trace:
+            PYTHON_TEXT = input
+        else:
+            PYTHON_TEXT = ""
 
     for transaction in COMPLETED_ABOVE:
-        chunks.append(render_transaction(transaction, TEXTAREA_WIDTH))
+        chunks.append(render_transaction(transaction, PYTHON_WIDTH))
 
-    textarea_text = """print "Hello, World!" """
-    chunks.append(render_form(textarea_text, TEXTAREA_WIDTH))
+    chunks.append(render_form(PYTHON_TEXT, PYTHON_WIDTH))
                       
     for transaction in COMPLETED_BELOW:
-        chunks.append(render_transaction(transaction, TEXTAREA_WIDTH))
+        chunks.append(render_transaction(transaction, PYTHON_WIDTH))
 
-    chunks.append(textarea_bottom)
+    chunks.append(PYTHON_BOTTOM)
     chunks += html_trailer(environ)
 
     do_headers(start_response, "200 OK", "text/html")

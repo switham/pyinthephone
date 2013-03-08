@@ -15,8 +15,10 @@ from wsgi_demo import allow_files, app
 
 if __name__ == "__main__":
     allow_files(["scripts/wsgi_demo.py", "scripts/wsgi_self_serv.py",
-                 "data/SL4A.jpg", "data/SL4A2.jpg",
-                 "data/foo.zip", "data/foo.txt"])
+                 "data/SL4A2.jpg",
+                 ])
+                 # "data/foo.zip", "data/foo.txt",
+                 # "data/SL4A.jpg",
     allow_files(argv[1:])
     httpd = make_server('', 8000, app)
     print "serving on port 8000"
