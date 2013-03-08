@@ -1,39 +1,58 @@
-wsgi_demo.py: Does lots of things:
-    fill_template() and textarea demo was originally in wsgi_textarea.py.
-    Adds a "@route()" decorator that does wildcards.
-    Serves the following routes:
+scripts/wsgi_demo.py is a mini web server with some demos.
+    It's based on wsgiref.simple_server
+        and the example code at http://docs.python.org/2/library/wsgiref.html
+    Does simple template-filling using Python format strings with an 
+        html-escaping dict-wrapper.
+    Has a "@route()" decorator that does trailing wildcards.
+    Has a little code to handle POST inputs.
+    Exception tracebacks are shown on the 404 page.  Somewhat insecure.
+
+    More features are displayed at the following routes:
     /
     /index.html
-    /faviocon.ico
-      	Actually serves	SL4A.jpg as image/jpeg.  (Is that right?)
     /welcome.html
-        Says hello with script path (like wsgi_hello.py) using fill_template().
-    /textarea
-        Textarea demo now adds an input/response pair when you click "run".
+        Says hello showing full script path.
+    /faviocon.ico
+      	Actually serves	data/SL4A2.jpg as image/jpeg.
+    /python
+        A Python shell like a baby ipython notebook.
+        Very insecure since I don't restrict this to 127.0.0.1.  
+	Has a textarea to enter the next set of commands.
+        When commands are run they stack up above the textarea with
+            light-grey-background text showing the input code,
+            white-background text showing stdout/stderr,
+            pink-background text showing exceptions or syntax errors.
+        All line-wrapped neatly in 80-column background blocks.
+        TODO: 
+          o  interrupt, edit/rerun, revert, delete, hide, save/load.
+          o  separate globals & log for each client and window.
     /environ
-      	Prints out the environ dictionary.  This is a little insecure
-        since it includes some of your Unix environment variables.
+      	Prints out the environ dictionary that is passed to @route'd 
+        functions.  Although the environ is a subset of the full one,
+        showing this is still a little insecure since it still includes 
+        info about your system.
     /static/
     /download/
       	Shows a listing of files that you "allowed" on the command line when
       	you started the wsgi_demo.py server.
         Each is shown with "view" and "download" links.
-      	Also gives a link to (see below	for why)
-      	   http://www.digiblog.de/2011/04/android-and-the-download-file-headers
     /static/*
         Treat the * part of the path as ./[path/]filename relative to
         where wsgi_demo.py is running.  Serve only allowed files.
-        Serve the file as "text/plain".  This is where the "view" links go.
+        Uses mimetypes.guess_type() to set type in response.
+        This is where the "view" links go.
     /download/*
       	Same set of files each served as
       	    Content-Type: application/octet-stream
       	    Content-Disposition: attachment; filename="thefilename.ext"
-      	Still trying to hack this to get my DEFY XT to download files.
-      	It may be that the BaseHTTPServer needs to do
-            self.protocol_version = 'HTTP/1.1'
-   	instead of the current default 1.0.  As suggested in comment at:
-            https://gist.github.com/josiahcarlson/3250376
-      	Or (just now thinking) maybe application/binary?
+        This has been tweaked to get my DEFY XT to download files.
+        Right now the phone accepts .txt, .zip and .jpg files at least.
+        Python files are served as .py.txt.
         See also:
            http://www.digiblog.de/2011/04/android-and-the-download-file-headers
-        My phone can download only the SECOND (.zip) example there.
+
+The script scripts/wsgi_self_serv.py runs wsgi_demo.py serving the files
+wsgi_demo.py, wsgi_self_serv.py and SL4A2.jpg.  Showing the server's own
+source code is a little insecure.  (Certainly not security by
+obscurity.)  This is a separate script because giving arguments to Python
+scripts on Android with SL4A is a pain.

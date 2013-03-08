@@ -26,7 +26,7 @@ from wsgiref.simple_server import make_server
 import os
 from sys import argv, exit, stderr
 import sys
-from mimetypes import guess_type
+import mimetypes
 import cgi
 import traceback
 import StringIO
@@ -232,7 +232,7 @@ def do_route(environ, start_response):
 
 
 def just_guess_type(filename):
-    return guess_type(filename)[0]
+    return mimetypes.guess_type(filename)[0]
 
 
 def do_headers(start_response, status, content_type, *more):
@@ -380,8 +380,8 @@ def get_POST_fieldvalues(environ):
 PYTHON_WIDTH = 80
 
 PYTHON_TOP = """
-<table style="margin:0px; padding:0px">\
-<tr style="margin:0px; padding:0px">\
+<table style="margin:0px; padding:0px">
+<tr style="margin:0px; padding:0px">
 <td style="margin:0px;">
 <hr style="margin:0px; padding:0px;">
 <pre style="font-family: monospace; font-size: small;">\
