@@ -22,7 +22,18 @@ This code is insecure!
     wsgi_self_serv.py makes this script display its own source code.
 """
 
-from wsgiref.simple_server import make_server
+import argparse
+argparser = argparse.ArgumentParser(description="Demo WSGI server",
+                                    add_help=True)
+argparser.add_argument("--public", action="store_true",
+                       help="Run on port accessible to other computers.")
+argparser.add_argument("--python", action="store_true",
+                       help="Serve Python interpreter page.")
+argparser.add_argument("--port", type=int, default=8000,
+                       help="What TCP port to serve on.")
+argparser.add_argument("files", nargs="*",
+                       help="Files to serve to view and download.")
+import wsgiref.simple_server
 import os
 from sys import argv, exit, stderr
 import sys
@@ -31,6 +42,7 @@ import cgi
 import traceback
 import StringIO
 import ast
+import socket
 
 
 REQUIRED_ENV_VARS = [
@@ -408,9 +420,13 @@ PYTHON_BOTTOM = """\
 </td></tr></table>
 """
 
+def unixify_newlines(text):
+    return text.replace('\r\n', '\n').replace('\r', '\n')
+
+
 def simple_wrap(text, width, strip=False):
     results = []
-    for line in text.replace('\r\n', '\n').replace('\r', '\n').split('\n'):
+    for line in text.split('\n'):
         while len(line) > width:
             results.append(line[:width])
             line = line[width:]
@@ -436,7 +452,7 @@ def render_transaction(transaction, width):
             (response, "white", False),
             (trace, "#FFe4e4", False),
             ]:
-        if text != None:
+        if text:
             text = simple_wrap(text, width, strip)
             chunks.append(fill_template(PYTHON_COMPLETED, locals()))
     return "".join(chunks)
@@ -446,11 +462,16 @@ def render_form(python_text, width):
     return fill_template(PYTHON_FORM, locals())
 
 
+DO_PYTHON = False
+
 def interpret(code_text):
+    if not DO_PYTHON:
+        return "I'm not doing Python.", ""
+    
     saved_stdout = sys.stdout
     saved_stderr = sys.stderr
     output = StringIO.StringIO()
-    trace = None
+    trace = ""
     try:
         sys.stdout = output
         sys.stderr = output
@@ -473,7 +494,7 @@ def interpret(code_text):
     finally:
         sys.stdout = saved_stdout
         sys.stderr = saved_stderr
-    return output.getvalue(), trace
+    return unixify_newlines(output.getvalue()), unixify_newlines(trace)
 
 
 PYTHON_TEXT = """print "Hello, World, I'm Python!" """
@@ -489,7 +510,7 @@ def do_python(environ, start_response):
     if environ["REQUEST_METHOD"] == "POST":
         # Modify data before rendering.
         values = get_POST_fieldvalues(environ)
-        input = values["input_text"]
+        input = unixify_newlines(values["input_text"])
         response, trace = interpret(input)
         COMPLETED_ABOVE.append( (input, response, trace) )
         if trace:
@@ -512,21 +533,26 @@ def do_python(environ, start_response):
     return [ "".join(chunks) ]
 
 
-# REQUEST_METHOD: GET
-# QUERY_STRING: 
-# _: ./serve_file.py
-# PATH_INFO: /foo
-# HTTP_HOST: 127.0.0.1:8000
-# wsgi.multithread: True
-# wsgi.multiprocess: False
+def serve(args=None):
+    global DO_PYTHON
 
-# HTTP_USER_AGENT: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8) AppleWebKit/537.22 (KHTML, like Gecko) Chrome/25.0.1364.99 Safari/537.22
+    if not args:
+        args = argparser.parse_args()
+    allow_files(args.files)
+    if args.public:
+        host = socket.gethostbyname(socket.getfqdn())
+        if host == "127.0.0.1":
+            host = "0.0.0.0"
+    else:
+        host = "127.0.0.1"
+    port = args.port
+    DO_PYTHON = args.python
+    
+    httpd = wsgiref.simple_server.make_server(host, port, app)
+    print "Serving on host:port %s:%d" % (host, port)
+    # Serve until process is killed
+    httpd.serve_forever()
 
 
 if __name__ == "__main__":
-    allow_files(argv[1:])
-    httpd = make_server('', 8000, app)
-    print "serving on port 8000"
-
-    # Serve until process is killed
-    httpd.serve_forever()
+    serve()
