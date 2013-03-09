@@ -18,6 +18,7 @@ if __name__ == "__main__":
         "scripts/wsgi_self_serv.py",
         "data/SL4A2.jpg",
         ] + glob("scripts/wsgi_android_*.py")
+        )
     # "data/foo.zip",
     # "data/foo.txt",
     # "data/SL4A.jpg",
