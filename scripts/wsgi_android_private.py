@@ -14,20 +14,6 @@ from glob import glob
 
 import wsgi_demo
 
-class Args(object):
-    pass
-
 if __name__ == "__main__":
-    args = Args()
-    args.public = False
-    args.port = 8000
-    args.python = True
-    args.files = [
-        "scripts/wsgi_demo.py",
-        "scripts/wsgi_self_serv.py",
-        "data/SL4A2.jpg",
-        ] + glob("scripts/wsgi_android_*.py")
-    # "data/foo.zip",
-    # "data/foo.txt",
-    # "data/SL4A.jpg",
-    wsgi_demo.serve(args)
+    files = argv[1:] + wsgi_demo.TYPICAL_FILES_TO_SERVE
+    wsgi_demo.serve(*files, public=False, python=True)

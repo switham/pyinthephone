@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 """
-wsgi_demo.py--WSGI server with templating, a routing decorator, and some demos.
+wsgi_demo.py--WSGI server with templating, a routing decorator,
+and some demos.
 Based on wsgiref.simple_server
     and the example code at http://docs.python.org/2/library/wsgiref.html
 
 Run this from the wsgi_demo directory like this:
-    scripts/wsgi_demo.py [files...]
+    scripts/wsgi_demo.py [options (see below)] [files...]
 The wsgi_demo directory corresponds to /mnt/sdcard/sl4a on Android --
 scripts run there but are read from    /mnt/sdcard/sl4a/scripts.
 
-Arguments on the command line name files users are allowed to view & download.
+Arguments on the command line name files users are allowed to view &
+download.
 (Paths are relative to the Python working dir, not the scripts directory.)
 
 This code is insecure!
@@ -19,20 +21,20 @@ This code is insecure!
     It runs any Python code you give it.
     Besides python, it may be vulnerable to code-injection attacts
         (although I made some vain gestures).
-    wsgi_self_serv.py makes this script display its own source code.
+    wsgi_android_*.py makes this script display its own source code.
 """
 
-import argparse
-argparser = argparse.ArgumentParser(description="Demo WSGI server",
-                                    add_help=True)
-argparser.add_argument("--public", action="store_true",
-                       help="Run on port accessible to other computers.")
-argparser.add_argument("--python", action="store_true",
-                       help="Serve Python interpreter page.")
-argparser.add_argument("--port", type=int, default=8000,
-                       help="What TCP port to serve on.")
-argparser.add_argument("files", nargs="*",
-                       help="Files to serve to view and download.")
+import optparse
+usage = """\
+usage: %prog [options] [files to serve...] -- Demo WSGI server.\
+"""
+optparser = optparse.OptionParser(usage=usage)
+optparser.add_option("--public", action="store_true", default=False,
+                   help="Run on IP address accessible to other computers.")
+optparser.add_option("--python", action="store_true", default=False,
+                   help="Serve a working Python interpreter page.")
+optparser.add_option("--port", type=int, default=8000,
+                   help="What TCP port to serve on (default=%default).")
 import wsgiref.simple_server
 import os
 from sys import argv, exit, stderr
@@ -43,6 +45,8 @@ import traceback
 import StringIO
 import ast
 import socket
+
+from makeargv import make_argv
 
 
 REQUIRED_ENV_VARS = [
@@ -67,6 +71,18 @@ INTERESTING_ENV_VARS = [
     "REMOTE_HOST",
     ]
 
+TYPICAL_FILES_TO_SERVE = [
+    "scripts/wsgi_demo.py",
+    "scripts/makeargv.py",
+    "scripts/wsgi_android_private.py",
+    "scripts/wsgi_android_files.py",
+    "scripts/wsgi_android_public.py",
+    "data/SL4A2.jpg",
+    ]
+    # "data/foo.zip",
+    # "data/foo.txt",
+    # "data/SL4A.jpg",
+
 
 header_template = """<!DOCTYPE html>
 <html>
@@ -80,7 +96,7 @@ header_template = """<!DOCTYPE html>
 <a href="/" style="font-size: small">home</a> &nbsp; &nbsp; &nbsp;
 <a href="/environ" style="font-size: small">environ</a> &nbsp; &nbsp; &nbsp;
 <a href="/download" style="font-size: small">files</a> &nbsp; &nbsp; &nbsp;
-<a href="/python#input" style="font-size: small">python</a>
+%(python_link)s
 <p/>
 <p/>
 """
@@ -90,9 +106,17 @@ trailer_template = """
 </html>
 """
 
+PYTHON_LINK = """\
+<a href="/python#input" style="font-size: small">python</a>\
+"""
+
 def html_header(environ, title=None):
     title = title or environ["PATH_INFO"]
-    return [fill_template(header_template, locals())]
+    if DO_PYTHON:
+        raws = {"python_link": PYTHON_LINK}
+    else:
+        raws = {"python_link": ""}
+    return [fill_template(header_template, locals(), raws)]
 
 
 def html_trailer(environ):
@@ -502,7 +526,10 @@ PYTHON_TEXT = """print "Hello, World, I'm Python!" """
 @route("/python/")
 def do_python(environ, start_response):
     global PYTHON_TEXT
-    
+
+    if not DO_PYTHON:
+        return do_404(environ, start_response)
+
     chunks = html_header(environ, "Python Interpreter")
     raw_dict = {"blank_line": "&nbsp;" * PYTHON_WIDTH}
     chunks.append(fill_template(PYTHON_TOP, {}, raw_dict))
@@ -533,12 +560,12 @@ def do_python(environ, start_response):
     return [ "".join(chunks) ]
 
 
-def serve(args=None):
+def serve(*pargs, **kargs):
     global DO_PYTHON
 
-    if not args:
-        args = argparser.parse_args()
-    allow_files(args.files)
+    args, files = optparser.parse_args(make_argv(*pargs, **kargs))
+    args, files = optparser.parse_args(make_argv(*pargs, **kargs))
+    allow_files(files)
     if args.public:
         host = socket.gethostbyname(socket.getfqdn())
         if host == "127.0.0.1":
@@ -555,4 +582,4 @@ def serve(args=None):
 
 
 if __name__ == "__main__":
-    serve()
+    serve(*argv[1:])
