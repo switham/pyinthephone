@@ -12,12 +12,15 @@ The default is to serve on
 127.0.0.1, only visible within the same device.  But it can also serve 
 from one phone to another, from the phone to any computer, and from Unix 
 or Mac (not sure about Windows) to the phone.  It also serves its own 
-source code so that what I develop in one place I can download to the 
-other.
+source code so that script changes made in one place can be downloaded 
+to another.
 
 For explanation of the code, see the comments in wsgi_demo.py.
 For usage of the server's options, see near the top of
 wsgi_demo.py.  A tutorial to set up and run on an Android is below.
+
+What is WSGI?  Web Standard Gateway Interface, a popular way to write web 
+servers in Python.  This project needs a cute name of its own.
 
 scripts/wsgi_demo.py is a mini web server with some demos.
     It's based on wsgiref.simple_server and the example code at 
@@ -209,8 +212,10 @@ Access the Android's server via the Android's browser:
     The text entry box accepts multiple lines of text, including indented
     loops, function and class definitions, and so forth.  Globals, 
     imports and definitions persist between entries.
-    There is no way to save or reload sessions.  The stock Android 
-    browser doesn't let you save a web page.
+    There is no way to save or reload sessions.  
+    The stock Android browser doesn't let you save a web page.
+    There's no way to edit files, only the set of commands you're about
+    to run.
     There is no way to clear the scroll of commands and outputs except 
     to restart the server.   There is no ^C or interrupt button yet.  
 
