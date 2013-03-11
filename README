@@ -210,9 +210,13 @@ Access the Android's server via the Android's browser:
     output on a white background.  (You may have to scroll back to see
     it--working on that!)
     The text entry box accepts multiple lines of text, including indented
-    loops, function and class definitions, and so forth.  Globals, 
-    imports and definitions persist between entries.
-    There is no way to save or reload sessions.  
+    loops, function and class definitions, and so forth.  
+    Globals, imports and definitions persist between entries.
+
+Python interpreter current limitations:
+    Only one session, even if the server is accessed by multiple users! 
+    The entire session is being held in the Android's memory.
+    There is no way to save or reload sessions. 
     The stock Android browser doesn't let you save a web page.
     There's no way to edit files, only the set of commands you're about
     to run.
