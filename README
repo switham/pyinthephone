@@ -8,8 +8,8 @@ compiled and working on Android.
 
 Meanwhile, this alpha-level project serves an interactive Python
 interpreter, from my phone, to the stock browser on the phone.  
-The default is to serve on 
-127.0.0.1, only visible within the same device.  But it can also serve 
+The default is to serve on 127.0.0.1 (localhost, loopback), 
+only visible within the same device.  But it can also serve 
 from one phone to another, from the phone to any computer, and from Unix 
 or Mac (not sure about Windows) to the phone.  It also serves its own 
 source code so that script changes made in one place can be downloaded 
@@ -19,7 +19,7 @@ For explanation of the code, see the comments in wsgi_demo.py.
 For usage of the server's options, see near the top of
 wsgi_demo.py.  A tutorial to set up and run on an Android is below.
 
-What is WSGI?  Web Standard Gateway Interface, a popular way to write web 
+What is WSGI?  Web Server Gateway Interface, a popular way to write web 
 servers in Python.  This project needs a cute name of its own.
 
 scripts/wsgi_demo.py is a mini web server with some demos.
