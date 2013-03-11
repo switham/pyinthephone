@@ -564,7 +564,6 @@ def serve(*pargs, **kargs):
     global DO_PYTHON
 
     args, files = optparser.parse_args(make_argv(*pargs, **kargs))
-    args, files = optparser.parse_args(make_argv(*pargs, **kargs))
     allow_files(files)
     if args.public:
         host = socket.gethostbyname(socket.getfqdn())

@@ -1,11 +1,33 @@
+I want to develop Python apps on my Android using HTML/Javascript 
+as the GUI.  
+
+SL4A, Scripting Layer for Android, allows Python development, but I
+would like a better environment than SL4A's, more like an iPython
+notebook.  There is someone working on getting all the pieces of iPython 
+compiled and working on Android.
+
+Meanwhile, this alpha-level project serves an interactive Python
+interpreter, from my phone, to the stock browser on the phone.  
+The default is to serve on 
+127.0.0.1, only visible within the same device.  But it can also serve 
+from one phone to another, from the phone to any computer, and from Unix 
+or Mac (not sure about Windows) to the phone.  It also serves its own 
+source code so that what I develop in one place I can download to the 
+other.
+
+For explanation of the code, see the comments in wsgi_demo.py.
+For usage of the server's options, see near the top of
+wsgi_demo.py.  A tutorial to set up and run on an Android is below.
+
 scripts/wsgi_demo.py is a mini web server with some demos.
-    It's based on wsgiref.simple_server
-        and the example code at http://docs.python.org/2/library/wsgiref.html
+    It's based on wsgiref.simple_server and the example code at 
+        http://docs.python.org/2/library/wsgiref.html
     Does simple template-filling using Python format strings with an 
         html-escaping dict-wrapper.
     Has a "@route()" decorator that does trailing wildcards.
     Has a little code to handle POST inputs.
-    Exception tracebacks are shown on the 404 page.  Somewhat insecure.
+    Exception tracebacks are shown on the 404 page and in the Python
+    interpreter page whenever there are errors there.  Somewhat insecure.
 
     More features are displayed at the following routes:
     /
@@ -33,8 +55,8 @@ scripts/wsgi_demo.py is a mini web server with some demos.
         info about your system.
     /static/
     /download/
-      	Shows a listing of files that you "allowed" on the command line when
-      	you started the wsgi_demo.py server.
+      	Shows a listing of files that you "allowed" on the command line 
+        when you started the wsgi_demo.py server.
         Each is shown with "view" and "download" links.
     /static/*
         Treat the * part of the path as ./[path/]filename relative to
@@ -48,11 +70,190 @@ scripts/wsgi_demo.py is a mini web server with some demos.
         This has been tweaked to get my DEFY XT to download files.
         Right now the phone accepts .txt, .zip and .jpg files at least.
         Python files are served as .py.txt.
-        See also:
-           http://www.digiblog.de/2011/04/android-and-the-download-file-headers
 
-The script scripts/wsgi_self_serv.py runs wsgi_demo.py serving the files
-wsgi_demo.py, wsgi_self_serv.py and SL4A2.jpg.  Showing the server's own
-source code is a little insecure.  (Certainly not security by
-obscurity.)  This is a separate script because giving arguments to Python
-scripts on Android with SL4A is a pain.
+    About downloading to Android devices, see also:
+       http://www.digiblog.de/2011/04/android-and-the-download-file-headers
+
+Running on SL4A on an Android device:
+
+    These instructions assume you know something about Unix directories 
+    (your Android device is a Linux machine), cd, pwd, ls and mkdir,
+    and that you know how to clone a git repository into a working
+    directory on your computer.
+
+    First go to https://code.google.com/p/android-scripting/
+    to download SL4A itself onto your Android.  Then go here
+    https://code.google.com/p/android-scripting/downloads
+    and download PythonForAndroid_r4.apk .
+
+    As I recall it tries to install once you download it, but you have
+    to say yes.
+
+    Assuming you have an SD card, SL4A will create the directory
+        /mnt/sdcard/sl4a
+    or for some people
+        /sdcard/sl4a
+    we will call that directory "...sdcard/sl4a" here.
+  
+    Get Python running.  See the SL4A and Python for Android pages for
+    help.  Run one of the Python demos.  Find out how to run the Python 
+    interpreter and try a couple commands.  Find out how to quit the
+    Python interpreter (back, back, yes).  Find out how to get back to
+    the list of scripts (leave and restart SL4A).
+
+Get wsgi_demo.py installed on your computer:
+    This is necessary to serve the source code to the Android device.
+    Use git to clone a wsgi_demo working directory from here.
+    This will create these things under wsgi_demo:
+        .git/ (possibly invisible) of course.
+        .gitignore
+        README
+        data/
+        scripts/
+
+Prepare the data directory on the Android:
+    You can use the bash interpreter in SL4A, or an app like the free File
+    Browser, to create the directory
+        ...sdcard/sl4a/data
+    There should already be
+        ...sdcard/sl4a/scripts
+
+Now serve the source from your computer for download to the Android.
+    You need to have the computer and Android on the same local net.
+    Preferably a home net that strangers aren't sharing, although mainly
+    all we are doing is serving some source files right now.
+    On the computer, 
+        cd wsgi_demo  
+        scripts/wsgi_android_files.py
+    This should say something like
+        Serving on host/port 192.168.1.123:8000
+    If instead it says
+        Serving on host/port 0.0.0.0:8000
+    then you need to find the I.P. address of the computer and substitute
+    in for the zeros.
+
+Once that server is running, download to the Android
+    Start the Android Browser.
+    Go to, e.g., http://192.168.1.123:8000 -- the address you found above.
+    You should see a "Welcome to the script at ..." message.
+
+    THE AUTHOR APOLOGIZES.  I'm sorry the following tedium.  I'm assuming
+    any of the mechanics could be unfamiliar to a reader.
+    At some point it can be more automated.
+
+    Above "Welcome" is "home   environ   files" -- click "files."
+    Now you should see "Files available here" and a list.  Each file
+    has "view" and "download" links.  
+    Click the download link of the first file.  A message should show.
+    Also a down-arrow icon in the alerts area at the top of the screen.
+    Open the alerts and make sure it says "download completed."
+    Sometimes I get "download unsuccessful" on the first download I try.
+    In either case dismiss the message, they pile up fast.
+    If you get unsuccess, go back and try the same download link again.
+    Download all the files and check that they all succeed.
+
+    Now, either with the sl4a bash interpreter, or with File Browser, 
+    we need to move the downloaded files to the right places.
+    My Browser puts downloaded files in 
+        ...sdcard/download
+    I will give the instructions for using File Browser to move and
+    rename the files.
+    Navigate to ...sdcard/download
+    The files you should see (this list will surely change) are
+        SL4A2.jpg
+        makeargv.py.txt
+        wsgi_android_files.py.txt
+        wsgi_android_private.py.txt
+        wsgi_android_public.py.txt
+        wsgi_demo.py.txt
+    SL4A2.jpg is the only file that goes to ...sdcard/sl4a/data.
+    TO MOVE A FILE:
+        Press and hold on the file name.
+        Menu comes up, pick "Move."
+        Navigate over to the data directory.  From ...sdcard/download:
+            back button to ...sdcard
+            (scroll and) click sl4a
+            click data
+        Click the menu button, pick "Paste".
+    Now go back to downloads for another file (back, back,
+    download).  I recommend moving them all first, then delete existing 
+    copies if any, then renaming them all from .py.txt to .py.
+    The Python files all go to the ...sdcard/sl4a/scripts directory.
+
+Stop the server on your computer.
+    ^ C  Sometimes more than once.  Till you see a prompt.
+    This makes sure that what you see from this point on is coming out of
+    your android. 
+
+Start the server in private mode on the Android.
+    Start SL4A.  You see the list of scripts.
+    Pick wsgi_android_private.py   You should get the black screen saying
+        dlopen libpython2.6.s0
+        Serving on host:port 127.0.0.1:8000
+    Now, you want to leave that running and go to the browser.  Careful:
+    Press the home button, not the back button.
+    You should notice the little green SL4A icon at the top of the screen,
+    indicating a running SL4A process.
+
+Access the Android's server via the Android's browser:
+    Go to your browser.  Type the address
+        http://127.0.0.1:8000
+    You should get the Welcome screen with four links at the top:
+        home   environ   files   python
+    Also notice that the path of the script is in ...sdcard/sl4a/scripts.
+    If you click "python," you get the Python interpreter screen with
+    a suggested command in a text-entry box.  Click the "run" button and 
+    you see both the command with a gray background and the resulting 
+    output on a white background.  (You may have to scroll back to see
+    it--working on that!)
+    The text entry box accepts multiple lines of text, including indented
+    loops, function and class definitions, and so forth.  Globals, 
+    imports and definitions persist between entries.
+    There is no way to save or reload sessions.  The stock Android 
+    browser doesn't let you save a web page.
+    There is no way to clear the scroll of commands and outputs except 
+    to restart the server.   There is no ^C or interrupt button yet.  
+
+To stop the server and/or Python interpreter on the Android:
+    Pull down the alerts from the top of the screen.
+    One of them says, "SL4A Service, tap to view 1 running script."
+    Click it, you see a little status monitor.
+    TO SIMPLY STOP IT:
+        Click and hold the entry for wsgi_android_private.py.
+        Up pops a single choice: Stop -- click that.
+    TO SEE THE SERVER LOG THEN STOP IT:
+        Click the entry for wsgi_android_private.py.
+        You see the http server log for the things you did on the web
+        pages and Python interpreter page.
+        To stop the process, click back, back, and yes to confirm.
+        To leave it running, click the home button.
+
+The server options on Android
+    The server has three important options:
+        Whether to serve to devices other than itself ("public"), 
+            default: no, use the 127.0.0.1 IP address.
+        Whether to serve the Python interpreter, default: no.
+        What files, if any, to serve, default: none.
+    On Android (SL4A), these options are controlled by which script is run:
+        Script                      public?  python?  serve what files?
+        wsgi_demo.py                   no       no        none
+        wsgi_android_private.py        no      yes    all wsgi_demo source
+        wsgi_android_files.py         yes       no    all wsgi_demo source
+        wsgi_android_public.py        yes      yes    all wsgi_demo source
+
+    Needless to say, the last option is the most insecure on a public net.
+    On your own private net, it lets you use the computer's keyboard and 
+    screen to run Python commands on your Android.
+
+Serving to the public from the Android
+    If you run either of the "public"-serving scripts, and if you haven't
+    rooted your phone and hacked SL4A, then the server says,
+        Serving on host:port 0.0.0.0:8000
+    Which means you need to find out the Android's IP address for another
+    machine to access it.  All the ways I know to find the IP address
+    don't work in SL4A in either python or bash.  
+    I have a couple sync apps that reveal my Android's
+    IP, but another way is to run wsgi_android_files.py on your computer,
+    connect from the Android's browser, and see the browser's IP in the
+    server log on the computer screen.  I guess I should put a "what's my
+    IP" function into the welcome screen. 
