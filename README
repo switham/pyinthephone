@@ -1,10 +1,20 @@
-I want to develop Python apps on my Android using HTML/Javascript 
-as the GUI.  
+PyInThePhone (PITP) is a Python notebook for Android phones.
+PITP comes in two parts, a web page called PyInTheFace where you go with
+your browser to use PITP, and a web server called PyInTheOven that does 
+the work.  Both of these run in your phone.
 
-SL4A, Scripting Layer for Android, allows Python development, but I
-would like a better environment than SL4A's, more like an iPython
-notebook.  There is someone working on getting all the pieces of iPython 
-compiled and working on Android.
+PITP is at the prototype stage right now.  A real notebook would let you
+go back and edit code you had already run; in PITP you can cut and paste.
+A real notebook would let you save notebooks and go back to them later;
+in PITP such Actually Useful Features are in the TODO list (below).
+
+PITP requires SL4A, Scripting Layer for Android, to work.  There are 
+instructions below for setting up from scratch.
+
+PITP was inspired by iPython, which has a beautiful notebook feature
+with matplotlib graphics in the notebook.  There is someone working on 
+getting all the pieces of iPython compiled and working on Android.
+PITP was also inspired by Jessica McKellar's keynote at the 2013 PyCon.
 
 Meanwhile, this alpha-level project serves an interactive Python
 interpreter, from my phone, to the stock browser on the phone.  
@@ -19,8 +29,8 @@ For explanation of the code, see the comments in wsgi_demo.py.
 For usage of the server's options, see near the top of
 wsgi_demo.py.  A tutorial to set up and run on an Android is below.
 
-What is WSGI?  Web Server Gateway Interface, a popular way to write web 
-servers in Python.  This project needs a cute name of its own.
+Why is the project called wsgi_demo?  Only because it started by adding
+things to someone's example of how to write a web server with wsgi.
 
 scripts/wsgi_demo.py is a mini web server with some demos.
     It's based on wsgiref.simple_server and the example code at 
@@ -28,29 +38,29 @@ scripts/wsgi_demo.py is a mini web server with some demos.
     Does simple template-filling using Python format strings with an 
         html-escaping dict-wrapper.
     Has a "@route()" decorator that does trailing wildcards.
-    Has a little code to handle POST inputs.
+    Has a small amount of code to handle POST inputs.
     Exception tracebacks are shown on the 404 page and in the Python
-    interpreter page whenever there are errors there.  Somewhat insecure.
+    interpreter page.  Somewhat insecure if served publicly.
 
-    More features are displayed at the following routes:
+    More features are displayed by browsing to these locations:
     /
     /index.html
     /welcome.html
-        Says hello showing full script path.
+        Says hello showing full script path.  The reason for that was so
+        I could tell for sure whether the server was running in the
+        phone or the computer.
     /faviocon.ico
       	Actually serves	data/SL4A2.jpg as image/jpeg.
     /python
         A Python shell like a baby ipython notebook.
-        Very insecure since I don't restrict this to 127.0.0.1.  
+        Very insecure when in --public mode.  
 	Has a textarea to enter the next set of commands.
         When commands are run they stack up above the textarea with
             light-grey-background text showing the input code,
             white-background text showing stdout/stderr,
             pink-background text showing exceptions or syntax errors.
         All line-wrapped neatly in 80-column background blocks.
-        TODO: 
-          o  interrupt, edit/rerun, revert, delete, hide, save/load.
-          o  separate globals & log for each client and window.
+        Very basic!  See the TODO list below.
     /environ
       	Prints out the environ dictionary that is passed to @route'd 
         functions.  Although the environ is a subset of the full one,
@@ -80,7 +90,7 @@ scripts/wsgi_demo.py is a mini web server with some demos.
 Running on SL4A on an Android device:
 
     These instructions assume you know something about Unix directories 
-    (your Android device is a Linux machine), cd, pwd, ls and mkdir,
+    (psst, your Android device is a Linux machine), cd, pwd, ls and mkdir,
     and that you know how to clone a git repository into a working
     directory on your computer.
 
@@ -140,8 +150,8 @@ Once that server is running, download to the Android
     Go to, e.g., http://192.168.1.123:8000 -- the address you found above.
     You should see a "Welcome to the script at ..." message.
 
-    THE AUTHOR APOLOGIZES.  I'm sorry the following tedium.  I'm assuming
-    any of the mechanics could be unfamiliar to a reader.
+    WHAT A PAIN.  I'm sorry the following tedium.  I'm spelling it all out
+    assuming any of the mechanics could be unfamiliar to a reader.
     At some point it can be more automated.
 
     Above "Welcome" is "home   environ   files" -- click "files."
@@ -240,7 +250,7 @@ To stop the server and/or Python interpreter on the Android:
 The server options on Android
     The server has three important options:
         Whether to serve to devices other than itself ("public"), 
-            default: no, use the 127.0.0.1 IP address.
+            default: no, use the private 127.0.0.1 IP address.
         Whether to serve the Python interpreter, default: no.
         What files, if any, to serve, default: none.
     On Android (SL4A), these options are controlled by which script is run:
@@ -250,7 +260,7 @@ The server options on Android
         wsgi_android_files.py         yes       no    all wsgi_demo source
         wsgi_android_public.py        yes      yes    all wsgi_demo source
 
-    Needless to say, the last option is the most insecure on a public net.
+    Needless to say, the last option is the least secure on a public net.
     On your own private net, it lets you use the computer's keyboard and 
     screen to run Python commands on your Android.
 
@@ -259,10 +269,57 @@ Serving to the public from the Android
     rooted your phone and hacked SL4A, then the server says,
         Serving on host:port 0.0.0.0:8000
     Which means you need to find out the Android's IP address for another
-    machine to access it.  All the ways I know to find the IP address
-    don't work in SL4A in either python or bash.  
-    I have a couple sync apps that reveal my Android's
-    IP, but another way is to run wsgi_android_files.py on your computer,
-    connect from the Android's browser, and see the browser's IP in the
-    server log on the computer screen.  I guess I should put a "what's my
-    IP" function into the welcome screen. 
+    machine to access it.  The way to find that manually is this:
+    Press the home button => Settings => Wireless and network settings
+    => Wi-Fi settings => menu key => Advanced, and there you will see
+    the IP address.  (This is on Android 2.3.7.)
+    
+    All the programmatic ways I know to find the IP address don't work 
+    (they seem deliberately disabled) in SL4A in either Python or bash.
+    Any help with that would be appreciated.  The solution is probably
+    to make an Android package with the right permissions, which is on
+    my TODO list (below).
+
+    If the Wi-Fi control panel doesn't work, another method is to run
+    wsgi_demo --public  on another computer, browse to it from the 
+    Android, and look at the client IP in the server log that prints 
+    on the computer screen.
+
+TODO
+    Put this up on github.
+
+    Break into parts, arrange as a real Python package.
+    Name the package (PyInThePhone?) and main parts ...Face, ...Oven?
+    Self-update or figure out how to update with Agit or dulwich.
+    Trigger server restart from client when code is updated.
+    Or use the pure-python version of mercurial + Hg-Git.
+    Or make an upload section of the files page, where you can 
+        choose files to push to the server?
+    & How to revert in case a change breaks the shell/editor.
+
+    Make it into an Android Package (.apk).
+    Options-setting menu at server startup on Android.
+    Make the interface more like flask's (e.g. @app.route())
+    
+    Features for the Python notebook (PyInTheFace)
+        Anchor above the log of the just-run entry
+        ^C
+        Stream the output ajaxily.  (ajaxially?  ajaxy vs. ajaxial)
+        Sessions / separate notebooks.
+        Save and restore whole session 
+            (Pickle the globals? What about functions, modules, etc?)
+        Login
+        Drawing area by server drawing a gif?
+        Javascript canvas area.
+        Javascript animation area.
+        Read-only notebooks you can serve to others without fear.
+        ssh(-like) way for machines to know each other
+
+        Shift-enter means run?
+        Use monospace font in a non-pre area?
+        For every entry:
+            Edit, rerun, delete, hide(shrink), clone, save as file, load?
+        Keep the stuff in the DOM instead of the server.
+                
+        I wish I could run it in a chroot.
+        Make it a completely stand-alone package?

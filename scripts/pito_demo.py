@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 """
-wsgi_demo.py--WSGI server with templating, a routing decorator,
-and some demos.
+pyinthephone.py-- PyInThePhone web server and demos.
+    WSGI server with templating, a routing decorator and Python notebook.
+    Eventually this will be the overall script, the module(s) about
+    general web server stuff will be called PyInTheOven, and the module(s)
+    about the notebook and admin pages will be PyInTheFace.  I think.
+
 Based on wsgiref.simple_server
     and the example code at http://docs.python.org/2/library/wsgiref.html
 

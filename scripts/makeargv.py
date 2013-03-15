@@ -17,11 +17,12 @@ def program(*pargs, **kargs):
 
 In the Python-style arguments case, makeargv.make_argv() creates a
 Unix-argv-like list of string arguments, which is then processed
-by optparse.  If only *argv[1:] is present, it is passed as-is.
+by optparse.  In the case of passing it *argv[1:], argv[1:] becomes
+pargs (with no kargs) and make_argv() always passes pargs along as-is.
 
 This should work with optparse or argparse.  I'm testing with optparse
 only because argparse wasn't available on my Android phone's Python
-install.
+installation.
 """
 
 def make_argv(*pargs, **kargs):
