@@ -9,9 +9,13 @@ pyinthephone.py-- PyInThePhone web server and demos.
 Based on wsgiref.simple_server
     and the example code at http://docs.python.org/2/library/wsgiref.html
 
-Run this from the wsgi_demo directory like this:
-    scripts/wsgi_demo.py [options (see below)] [files...]
-The wsgi_demo directory corresponds to /mnt/sdcard/sl4a on Android --
+On Unix, run this from the pyinthephone directory like this:
+    scripts/pyinthephone.py [options (see below)] [files...]
+On Android, in SL4A, pick one of these:
+    pyinthephone_private.py
+    pyinthephone_files.py
+    pyinthephone_public.py
+The pyinthephone directory corresponds to /mnt/sdcard/sl4a on Android --
 scripts run there but are read from    /mnt/sdcard/sl4a/scripts.
 
 Arguments on the command line name files users are allowed to view &
@@ -25,12 +29,13 @@ This code is insecure!
     It runs any Python code you give it.
     Besides python, it may be vulnerable to code-injection attacts
         (although I made some vain gestures).
-    wsgi_android_*.py makes this script display its own source code.
+    The files arguments, pyinthephone_files.py and pyinthephone_public.py
+    make this script display its own source code.
 """
 
 import optparse
 usage = """\
-usage: %prog [options] [files to serve...] -- Demo WSGI server.\
+usage: %prog [options] [files to serve...]--PyInThePhone back end.
 """
 optparser = optparse.OptionParser(usage=usage)
 optparser.add_option("--public", action="store_true", default=False,
@@ -76,11 +81,11 @@ INTERESTING_ENV_VARS = [
     ]
 
 TYPICAL_FILES_TO_SERVE = [
-    "scripts/wsgi_demo.py",
+    "scripts/pyinthephone.py",
     "scripts/makeargv.py",
-    "scripts/wsgi_android_private.py",
-    "scripts/wsgi_android_files.py",
-    "scripts/wsgi_android_public.py",
+    "scripts/pyinthephone_private.py",
+    "scripts/pyinthephone_files.py",
+    "scripts/pyinthephone_public.py",
     "data/SL4A2.jpg",
     ]
     # "data/foo.zip",
@@ -313,8 +318,9 @@ def app(environ, start_response):
 @route("/index.html")
 @route("/welcome.html")
 def home_page(environ, start_response):
-    chunks = html_header(environ, title="WSGI Demo--Welcome!")
-    chunks += ["Welcome to the script at\n" + os.path.abspath(__file__)]
+    chunks = html_header(environ, title="Welcome to PyInThePhone!")
+    chunks += ["Welcome to PyInThePhone at\n" +
+               os.path.abspath(__file__)]
     chunks += html_trailer(environ)
     do_headers(start_response, "200 OK", "text/html")
     return chunks
@@ -332,7 +338,7 @@ def icon(environ, start_response):
 @route("/environ/")
 @route("/environ/*")
 def dump_environ(environ, start_response):
-    chunks = html_header(environ, title="WSGI Demo--Welcome!")
+    chunks = html_header(environ, title="PyInThePhone environment")
 
     chunks += ['<pre style="word-wrap:break-word;">\n']
     chunks += ["os.getcwd(): " + os.getcwd() + "\n\n"]
