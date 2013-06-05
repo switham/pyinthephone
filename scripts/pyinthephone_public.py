@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 """
-pyinthephone_public.py--pyinthephone serving source + PYTHON on PUBLIC IP.
+pyinthephone_public.py
+    Copyright (c) 2013 Steve Witham All rights reserved.  
+    PyInThePhone is available under a BSD two-clause license, whose
+    full text can be found at http://github.com/switham/pyinthephone/LICENSE
+
+pyinthephone serving source + PYTHON on PUBLIC IP.
 The Python interpreter is turned on.  Serves on a PUBLIC IP address.
 On Android, this gets the options into pyinthephone.
 
@@ -13,9 +18,6 @@ from sys import argv
 from glob import glob
 
 import pyinthephone
-
-class Args(object):
-    pass
 
 if __name__ == "__main__":
     files = argv[1:] + pyinthephone.TYPICAL_FILES_TO_SERVE

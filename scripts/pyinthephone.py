@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-"""
-pyinthephone.py-- PyInThePhone web server and demos.
-    WSGI server with templating, a routing decorator and Python notebook.
-    Eventually this will be the overall script, the module(s) about
-    general web server stuff will be called PyInTheOven, and the module(s)
-    about the notebook and admin pages will be PyInTheFace.  I think.
+""" pyinthephone.py
+    Copyright (c) 2013 Steve Witham All rights reserved.  
+    PyInThePhone is available under a BSD two-clause license, whose
+    full text can be found at http://github.com/switham/pyinthephone/LICENSE
+
+PyInThePhone web server and Python notebook backend.
 
 Based on wsgiref.simple_server
     and the example code at http://docs.python.org/2/library/wsgiref.html
@@ -23,7 +23,7 @@ download.
 (Paths are relative to the Python working dir, not the scripts directory.)
 
 This code is insecure!
-    It runs on your public IP address instead of 127.0.0.1.
+    It can run on publicly-reachable URLs instead of 127.0.0.1.
     It displays at least one Unix environment variable (PWD).
     It shows Python stack traces on the python and 404 pages.
     It runs any Python code you give it.

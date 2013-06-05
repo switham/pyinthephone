@@ -1,5 +1,9 @@
 #!/usr/bin/env python
-"""
+""" makeargv.py
+    Copyright (c) 2013 Steve Witham All rights reserved.  
+    PyInThePhone is available under a BSD two-clause license, whose
+    full text can be found at http://github.com/switham/pyinthephone/LICENSE
+    
 Allow Unix or Python-style args to a program.
 
 A way to make these three equivalent (assuming optparse is set up):

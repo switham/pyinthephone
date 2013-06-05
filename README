@@ -1,23 +1,28 @@
-PyInThePhone (PITP) is a Python notebook for Android phones.
-PITP comes in two parts, a web page called PyInTheFace where you go with
-your browser to use PITP, and a web server called PyInTheOven that does 
-the work.  Both of these run in your phone.
+PyInThePhone README
+    Copyright (c) 2013 Steve Witham All rights reserved.  
+    PyInThePhone is available under a BSD two-clause license, whose
+    full text can be found at http://github.com/switham/pyinthephone/LICENSE
 
-PITP is at the prototype stage right now.  A real notebook would let you
-go back and edit code you had already run; in PITP you can cut and paste.
-A real notebook would let you save notebooks and go back to them later;
-in PITP such Actually Useful Features are in the TODO list (below).
+PyInThePhone is a Python notebook for Android phones and tablets.
+PyInThePhone comes in two parts: 
+  o  a web page where you go with your browser, type paragraphs of Python,
+     and see the resulting outputs, and 
+  o  a Python-based web server that does the work.  
+Both of these run in your phone.
 
-PITP requires SL4A, Scripting Layer for Android, to work.  There are 
+PyInThePhone is at the prototype stage.  See the TODO list (below).
+
+PyInThePhone requires SL4A, Scripting Layer for Android, to work.  There are 
 instructions below for setting up from scratch.
 
-PITP was inspired by iPython, which has a beautiful notebook feature
+PyInThePhone was inspired by Jessica McKellar's keynote at the 2013 PyCon
+    http://us.pycon.org/2013/schedule/presentation/214/
+and by iPython, which has a beautiful notebook feature
 with matplotlib graphics in the notebook.  There is someone working on 
 getting all the pieces of iPython compiled and working on Android.
-PITP was also inspired by Jessica McKellar's keynote at the 2013 PyCon.
 
 Meanwhile, this alpha-level project serves an interactive Python
-interpreter, from my phone, to the stock browser on the phone.  
+interpreter, from a phone, to the stock browser on the phone.  
 The default is to serve on 127.0.0.1 (localhost, loopback), 
 only visible within the same device.  But it can also serve 
 from one phone to another, from the phone to any computer, and from Unix 
@@ -25,14 +30,11 @@ or Mac (not sure about Windows) to the phone.  It also serves its own
 source code so that script changes made in one place can be downloaded 
 to another.
 
-For explanation of the code, see the comments in wsgi_demo.py.
-For usage of the server's options, see near the top of
-wsgi_demo.py.  A tutorial to set up and run on an Android is below.
+For explanation of the code, see the comments in pyinthephone.py.
+For usage of the server's options, see the optparse lines near the top of
+pyinthephone.py.  A tutorial to set up and run on an Android is below.
 
-Why is the project called wsgi_demo?  Only because it started by adding
-things to someone's example of how to write a web server with wsgi.
-
-scripts/wsgi_demo.py is a mini web server with some demos.
+scripts/pyinthephone.py is a mini web server with some demos.
     It's based on wsgiref.simple_server and the example code at 
         http://docs.python.org/2/library/wsgiref.html
     Does simple template-filling using Python format strings with an 
@@ -69,11 +71,11 @@ scripts/wsgi_demo.py is a mini web server with some demos.
     /static/
     /download/
       	Shows a listing of files that you "allowed" on the command line 
-        when you started the wsgi_demo.py server.
+        when you started the pyinthephone.py server.
         Each is shown with "view" and "download" links.
     /static/*
         Treat the * part of the path as ./[path/]filename relative to
-        where wsgi_demo.py is running.  Serve only allowed files.
+        where pyinthephone.py is running.  Serve only allowed files.
         Uses mimetypes.guess_type() to set type in response.
         This is where the "view" links go.
     /download/*
@@ -114,10 +116,10 @@ Running on SL4A on an Android device:
     Python interpreter (back, back, yes).  Find out how to get back to
     the list of scripts (leave and restart SL4A).
 
-Get wsgi_demo.py installed on your computer:
+Get pyinthephone.py installed on your computer:
     This is necessary to serve the source code to the Android device.
-    Use git to clone a wsgi_demo working directory from here.
-    This will create these things under wsgi_demo:
+    Use git to clone a pyinthephone working directory from here.
+    This will create these things under pyinthephone:
         .git/ (possibly invisible) of course.
         .gitignore
         README
@@ -136,8 +138,8 @@ Now serve the source from your computer for download to the Android.
     Preferably a home net that strangers aren't sharing, although mainly
     all we are doing is serving some source files right now.
     On the computer, 
-        cd wsgi_demo  
-        scripts/wsgi_android_files.py
+        cd pyinthephone  
+        scripts/pyinthephone_files.py
     This should say something like
         Serving on host/port 192.168.1.123:8000
     If instead it says
@@ -175,10 +177,10 @@ Once that server is running, download to the Android
     The files you should see (this list will surely change) are
         SL4A2.jpg
         makeargv.py.txt
-        wsgi_android_files.py.txt
-        wsgi_android_private.py.txt
-        wsgi_android_public.py.txt
-        wsgi_demo.py.txt
+        pyinthephone_files.py.txt
+        pyinthephone_private.py.txt
+        pyinthephone_public.py.txt
+        pyinthephone.py.txt
     SL4A2.jpg is the only file that goes to ...sdcard/sl4a/data.
     TO MOVE A FILE:
         Press and hold on the file name.
@@ -200,7 +202,7 @@ Stop the server on your computer.
 
 Start the server in private mode on the Android.
     Start SL4A.  You see the list of scripts.
-    Pick wsgi_android_private.py   You should get the black screen saying
+    Pick pyinthephone_private.py   You should get the black screen saying
         dlopen libpython2.6.s0
         Serving on host:port 127.0.0.1:8000
     Now, you want to leave that running and go to the browser.  Careful:
@@ -238,10 +240,10 @@ To stop the server and/or Python interpreter on the Android:
     One of them says, "SL4A Service, tap to view 1 running script."
     Click it, you see a little status monitor.
     TO SIMPLY STOP IT:
-        Click and hold the entry for wsgi_android_private.py.
+        Click and hold the entry for pyinthephone_private.py.
         Up pops a single choice: Stop -- click that.
     TO SEE THE SERVER LOG THEN STOP IT:
-        Click the entry for wsgi_android_private.py.
+        Click the entry for pyinthephone_private.py.
         You see the http server log for the things you did on the web
         pages and Python interpreter page.
         To stop the process, click back, back, and yes to confirm.
@@ -255,10 +257,10 @@ The server options on Android
         What files, if any, to serve, default: none.
     On Android (SL4A), these options are controlled by which script is run:
         Script                      public?  python?  serve what files?
-        wsgi_demo.py                   no       no        none
-        wsgi_android_private.py        no      yes    all wsgi_demo source
-        wsgi_android_files.py         yes       no    all wsgi_demo source
-        wsgi_android_public.py        yes      yes    all wsgi_demo source
+        pyinthephone.py                no       no        none
+        pyinthephone_private.py        no      yes    all pyinthephone source
+        pyinthephone_files.py         yes       no    all pyinthephone source
+        pyinthephone_public.py        yes      yes    all pyinthephone source
 
     Needless to say, the last option is the least secure on a public net.
     On your own private net, it lets you use the computer's keyboard and 
@@ -281,7 +283,7 @@ Serving to the public from the Android
     my TODO list (below).
 
     If the Wi-Fi control panel doesn't work, another method is to run
-    wsgi_demo --public  on another computer, browse to it from the 
+    pyinthephone.py --public  on another computer, browse to it from the 
     Android, and look at the client IP in the server log that prints 
     on the computer screen.
 
