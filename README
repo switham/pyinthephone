@@ -288,40 +288,47 @@ Serving to the public from the Android
     on the computer screen.
 
 TODO
-    Put this up on github.
-
-    Break into parts, arrange as a real Python package.
-    Name the package (PyInThePhone?) and main parts ...Face, ...Oven?
-    Self-update or figure out how to update with Agit or dulwich.
-    Trigger server restart from client when code is updated.
-    Or use the pure-python version of mercurial + Hg-Git.
-    Or make an upload section of the files page, where you can 
-        choose files to push to the server?
-    & How to revert in case a change breaks the shell/editor.
-
-    Make it into an Android Package (.apk).
-    Options-setting menu at server startup on Android.
-    Make the interface more like flask's (e.g. @app.route())
+    This TODO list is partly converted into github issues, generally most important first:
+        https://github.com/switham/pyinthephone/issues
+    Below are the issues I haven't typed in there (they expand as they convert!).
     
-    Features for the Python notebook (PyInTheFace)
-        Anchor above the log of the just-run entry
-        ^C
-        Stream the output ajaxily.  (ajaxially?  ajaxy vs. ajaxial)
-        Sessions / separate notebooks.
-        Save and restore whole session 
-            (Pickle the globals? What about functions, modules, etc?)
-        Login
-        Drawing area by server drawing a gif?
-        Javascript canvas area.
-        Javascript animation area.
+    Sessions / separate notebooks.
+    Multiple-notebook features:
+        A list of notebooks, auto-located, auto-saved.
+            Each is a separate session.
+            If so, show "running" flag in notebook list!
+        Export/import/backup/sync
+            Ideally the saved format is a self-contained HTML (including images?) 
+                that is viewable read-only anywhere, but also contains the 
+                user python code, and becomes live when served through
+                pyinthephone.
+            Export/import in that format.
+            Serve (to be viewed or run externally) from your phone?
+            
         Read-only notebooks you can serve to others without fear.
-        ssh(-like) way for machines to know each other
+        Save or back up notebooks external to the phone.
+
+    Transition to editor / runnable script style of work.
+    
+    User-visible features within an individual Python notebook
+        Anchor above the log of the just-run entry (or else never reload the page)
+        Drawing area.  Matplotlib-like api?  Processing-like?  Pyglet-like?
+            For static pix: HTML5 canvas vs. uploaded gif.
+        Animation area.  Interactive? Processing-like?  Pyglet-like?
+            Would have to be HTML5 canvas or whatever some JS library does.
 
         Shift-enter means run?
-        Use monospace font in a non-pre area?
+	Allow editing of entries.
+            If so, how to detect edits and auto-save them?
+            Allow editing while one is running?  Even edit the one that's running??
         For every entry:
             Edit, rerun, delete, hide(shrink), clone, save as file, load?
-        Keep the stuff in the DOM instead of the server.
-                
+
+    Implementation / code-style issues
         I wish I could run it in a chroot.
-        Make it a completely stand-alone package?
+        Make it a completely stand-alone package? (Clone SL4A?)
+        Make the interface more like flask's (e.g. @app.route())
+        Javascript animation area.
+        Use monospace font in a non-pre area?
+        Keep the stuff in the DOM instead of the server... or both? ...or always-saved too?
+                
