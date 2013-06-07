@@ -288,25 +288,17 @@ Serving to the public from the Android
     on the computer screen.
 
 TODO
-    This TODO list is partly converted into github issues, generally most important first:
+    This TODO list is partly converted into github issues, generally most 
+    important first:
         https://github.com/switham/pyinthephone/issues
-    Below are the issues I haven't typed in there (they expand as they convert!).
+
+    Below are the issues I haven't typed in there (they expand as they 
+    convert!).
     
-    Sessions / separate notebooks.
     Multiple-notebook features:
-        A list of notebooks, auto-located, auto-saved.
-            Each is a separate session.
-            If so, show "running" flag in notebook list!
-        Export/import/backup/sync
-            Ideally the saved format is a self-contained HTML (including images?) 
-                that is viewable read-only anywhere, but also contains the 
-                user python code, and becomes live when served through
-                pyinthephone.
-            Export/import in that format.
-            Serve (to be viewed or run externally) from your phone?
+        Serve (to be viewed or run externally) from your phone?
             
-        Read-only notebooks you can serve to others without fear.
-        Save or back up notebooks external to the phone.
+        Back up or sync notebooks external to the phone.
 
     Transition to editor / runnable script style of work.
     
@@ -328,7 +320,6 @@ TODO
         I wish I could run it in a chroot.
         Make it a completely stand-alone package? (Clone SL4A?)
         Make the interface more like flask's (e.g. @app.route())
-        Javascript animation area.
         Use monospace font in a non-pre area?
-        Keep the stuff in the DOM instead of the server... or both? ...or always-saved too?
+        Keep the stuff in the DOM instead of the server... or both?
                 
