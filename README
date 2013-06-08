@@ -295,15 +295,9 @@ TODO
     Below are the issues I haven't typed in there (they expand as they 
     convert!).
     
-    Multiple-notebook features:
-        Serve (to be viewed or run externally) from your phone?
-            
-        Back up or sync notebooks external to the phone.
-
     Transition to editor / runnable script style of work.
     
     User-visible features within an individual Python notebook
-        Anchor above the log of the just-run entry (or else never reload the page)
         Drawing area.  Matplotlib-like api?  Processing-like?  Pyglet-like?
             For static pix: HTML5 canvas vs. uploaded gif.
         Animation area.  Interactive? Processing-like?  Pyglet-like?
