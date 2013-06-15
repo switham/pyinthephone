@@ -297,20 +297,7 @@ TODO
     
     Transition to editor / runnable script style of work.
     
-    User-visible features within an individual Python notebook
-        Drawing area.  Matplotlib-like api?  Processing-like?  Pyglet-like?
-            For static pix: HTML5 canvas vs. uploaded gif.
-        Animation area.  Interactive? Processing-like?  Pyglet-like?
-            Would have to be HTML5 canvas or whatever some JS library does.
-
-        Shift-enter means run?
-	Allow editing of entries.
-            If so, how to detect edits and auto-save them?
-            Allow editing while one is running?  Even edit the one that's running??
-        For every entry:
-            Edit, rerun, delete, hide(shrink), clone, save as file, load?
-
-    Implementation / code-style issues
+    Implementation / code-organization / code-style issues
         I wish I could run it in a chroot.
         Make it a completely stand-alone package? (Clone SL4A?)
         Make the interface more like flask's (e.g. @app.route())
