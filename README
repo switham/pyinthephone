@@ -10,18 +10,20 @@ PyInThePhone comes in two parts:
   o  a Python-based web server that does the work.  
 Both of these run in your phone.
 
-PyInThePhone is at the prototype stage.  See the TODO list (below).
+PyInThePhone is at the prototype stage.  See the issues list at
+    https://github.com/switham/pyinthephone/issues
+plus the TODO list below, which is in the process of being converted to issues.
 
 PyInThePhone requires SL4A, Scripting Layer for Android, to work.  There are 
-instructions below for setting up from scratch.
+instructions below for setting up from scratch, as well as instructions for
+use.
 
-PyInThePhone was inspired by Jessica McKellar's keynote at the 2013 PyCon
-    http://us.pycon.org/2013/schedule/presentation/214/
+PyInThePhone was inspired by Jessica McKellar's draft keynote for the 2013 PyCon,
 and by iPython, which has a beautiful notebook feature
 with matplotlib graphics in the notebook.  There is someone working on 
 getting all the pieces of iPython compiled and working on Android.
 
-Meanwhile, this alpha-level project serves an interactive Python
+Meanwhile, this prototype-stage project serves an interactive Python
 interpreter, from a phone, to the stock browser on the phone.  
 The default is to serve on 127.0.0.1 (localhost, loopback), 
 only visible within the same device.  But it can also serve 
@@ -34,12 +36,12 @@ For explanation of the code, see the comments in pyinthephone.py.
 For usage of the server's options, see the optparse lines near the top of
 pyinthephone.py.  A tutorial to set up and run on an Android is below.
 
-scripts/pyinthephone.py is a mini web server with some demos.
+scripts/pyinthephone.py is the web server part of pyinthephone.
     It's based on wsgiref.simple_server and the example code at 
         http://docs.python.org/2/library/wsgiref.html
-    Does simple template-filling using Python format strings with an 
+    It does simple template-filling using Python format strings with an 
         html-escaping dict-wrapper.
-    Has a "@route()" decorator that does trailing wildcards.
+    Has a "@route()" decorator like in Flask, that does trailing wildcards.
     Has a small amount of code to handle POST inputs.
     Exception tracebacks are shown on the 404 page and in the Python
     interpreter page.  Somewhat insecure if served publicly.
@@ -62,7 +64,7 @@ scripts/pyinthephone.py is a mini web server with some demos.
             white-background text showing stdout/stderr,
             pink-background text showing exceptions or syntax errors.
         All line-wrapped neatly in 80-column background blocks.
-        Very basic!  See the TODO list below.
+        Very basic!  See https://github.com/switham/pyinthephone/issues .
     /environ
       	Prints out the environ dictionary that is passed to @route'd 
         functions.  Although the environ is a subset of the full one,
@@ -82,7 +84,7 @@ scripts/pyinthephone.py is a mini web server with some demos.
       	Same set of files each served as
       	    Content-Type: application/octet-stream
       	    Content-Disposition: attachment; filename="thefilename.ext"
-        This has been tweaked to get my DEFY XT to download files.
+        This has been tweaked to get my phone to download files.
         Right now the phone accepts .txt, .zip and .jpg files at least.
         Python files are served as .py.txt.
 
@@ -97,7 +99,7 @@ Running on SL4A on an Android device:
     directory on your computer.
 
     First go to https://code.google.com/p/android-scripting/
-    to download SL4A itself onto your Android.  Then go here
+    to download SL4A itself onto your Android.  Then go to
     https://code.google.com/p/android-scripting/downloads
     and download PythonForAndroid_r4.apk .
 
@@ -154,7 +156,7 @@ Once that server is running, download to the Android
 
     WHAT A PAIN.  I'm sorry the following tedium.  I'm spelling it all out
     assuming any of the mechanics could be unfamiliar to a reader.
-    At some point it can be more automated.
+    https://github.com/switham/pyinthephone/issues/1 "Make it easy to install."
 
     Above "Welcome" is "home   environ   files" -- click "files."
     Now you should see "Files available here" and a list.  Each file
@@ -163,7 +165,7 @@ Once that server is running, download to the Android
     Also a down-arrow icon in the alerts area at the top of the screen.
     Open the alerts and make sure it says "download completed."
     Sometimes I get "download unsuccessful" on the first download I try.
-    In either case dismiss the message, they pile up fast.
+    In either case dismiss the message (red-circle minus sign), they pile up fast.
     If you get unsuccess, go back and try the same download link again.
     Download all the files and check that they all succeed.
 
@@ -172,7 +174,7 @@ Once that server is running, download to the Android
     My Browser puts downloaded files in 
         ...sdcard/download
     I will give the instructions for using File Browser to move and
-    rename the files.
+    rename the files; Unix speakers, please translate to shell commands...
     Navigate to ...sdcard/download
     The files you should see (this list will surely change) are
         SL4A2.jpg
@@ -198,7 +200,7 @@ Once that server is running, download to the Android
 Stop the server on your computer.
     ^ C  Sometimes more than once.  Till you see a prompt.
     This makes sure that what you see from this point on is coming out of
-    your android. 
+    your android itself.
 
 Start the server in private mode on the Android.
     Start SL4A.  You see the list of scripts.
@@ -220,20 +222,16 @@ Access the Android's server via the Android's browser:
     a suggested command in a text-entry box.  Click the "run" button and 
     you see both the command with a gray background and the resulting 
     output on a white background.  (You may have to scroll back to see
-    it--working on that!)
+    it--working on that! https://github.com/switham/pyinthephone/issues/17 )
     The text entry box accepts multiple lines of text, including indented
     loops, function and class definitions, and so forth.  
     Globals, imports and definitions persist between entries.
+    Currently you can't edit a block you finished https://github.com/switham/pyinthephone/issues/20
+    but you can copy a whole block, paste it into the text-entry area and edit that.
 
-Python interpreter current limitations:
-    Only one session, even if the server is accessed by multiple users! 
-    The entire session is being held in the Android's memory.
-    There is no way to save or reload sessions. 
-    The stock Android browser doesn't let you save a web page.
-    There's no way to edit files, only the set of commands you're about
-    to run.
-    There is no way to clear the scroll of commands and outputs except 
-    to restart the server.   There is no ^C or interrupt button yet.  
+As mentioned, this is prototype code.  Check out the issue list to see what's broken and
+what I'm hoping for:
+    https://github.com/switham/pyinthephone/issues
 
 To stop the server and/or Python interpreter on the Android:
     Pull down the alerts from the top of the screen.
@@ -264,7 +262,7 @@ The server options on Android
 
     Needless to say, the last option is the least secure on a public net.
     On your own private net, it lets you use the computer's keyboard and 
-    screen to run Python commands on your Android.
+    screen to run Python commands on your Android (next section).
 
 Serving to the public from the Android
     If you run either of the "public"-serving scripts, and if you haven't
@@ -279,8 +277,8 @@ Serving to the public from the Android
     All the programmatic ways I know to find the IP address don't work 
     (they seem deliberately disabled) in SL4A in either Python or bash.
     Any help with that would be appreciated.  The solution is probably
-    to make an Android package with the right permissions, which is on
-    my TODO list (below).
+    to make an Android package with the right permissions, 
+        https://github.com/switham/pyinthephone/issues/12
 
     If the Wi-Fi control panel doesn't work, another method is to run
     pyinthephone.py --public  on another computer, browse to it from the 
@@ -288,19 +286,18 @@ Serving to the public from the Android
     on the computer screen.
 
 TODO
-    This TODO list is partly converted into github issues, generally most 
+    This TODO list is mostly converted into github issues, generally most 
     important first:
         https://github.com/switham/pyinthephone/issues
 
-    Below are the issues I haven't typed in there (they expand as they 
-    convert!).
+    Below are the issues I haven't typed in there.
     
     Transition to editor / runnable script style of work.
     
     Implementation / code-organization / code-style issues
         I wish I could run it in a chroot.
         Make it a completely stand-alone package? (Clone SL4A?)
-        Make the interface more like flask's (e.g. @app.route())
+        Make the interface more like flask's (e.g. @app.route() instead of @route())
         Use monospace font in a non-pre area?
         Keep the stuff in the DOM instead of the server... or both?
                 
