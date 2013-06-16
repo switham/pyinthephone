@@ -8,17 +8,16 @@ PyInThePhone comes in two parts:
   o  a web page where you go with your browser, type paragraphs of Python,
      and see the resulting outputs, and 
   o  a Python-based web server that does the work.  
-Both of these run in your phone.
+Both of these run in your phone (or your computer; see below).
 
 PyInThePhone is at the prototype stage.  See the issues list at
     https://github.com/switham/pyinthephone/issues
-plus the TODO list below, which is in the process of being converted to issues.
 
 PyInThePhone requires SL4A, Scripting Layer for Android, to work.  There are 
-instructions below for setting up from scratch, as well as instructions for
-use.
+instructions for setting everything up from scratch and using pyinthephone,
+below.
 
-PyInThePhone was inspired by Jessica McKellar's draft keynote for the 2013 PyCon,
+PyInThePhone was inspired by a talk by Jessica McKellar,
 and by iPython, which has a beautiful notebook feature
 with matplotlib graphics in the notebook.  There is someone working on 
 getting all the pieces of iPython compiled and working on Android.
@@ -50,11 +49,10 @@ scripts/pyinthephone.py is the web server part of pyinthephone.
     /
     /index.html
     /welcome.html
-        Says hello showing full script path.  The reason for that was so
-        I could tell for sure whether the server was running in the
-        phone or the computer.
+        Says hello showing full script path, so you can tell for sure 
+        whether the server is running in the phone or the computer.
     /faviocon.ico
-      	Actually serves	data/SL4A2.jpg as image/jpeg.
+      	serves	data/SL4A2.jpg.
     /python
         A Python shell like a baby ipython notebook.
         Very insecure when in --public mode.  
@@ -226,12 +224,9 @@ Access the Android's server via the Android's browser:
     The text entry box accepts multiple lines of text, including indented
     loops, function and class definitions, and so forth.  
     Globals, imports and definitions persist between entries.
-    Currently you can't edit a block you finished https://github.com/switham/pyinthephone/issues/20
+    Currently you can't edit a block you finished 
+        https://github.com/switham/pyinthephone/issues/20
     but you can copy a whole block, paste it into the text-entry area and edit that.
-
-As mentioned, this is prototype code.  Check out the issue list to see what's broken and
-what I'm hoping for:
-    https://github.com/switham/pyinthephone/issues
 
 To stop the server and/or Python interpreter on the Android:
     Pull down the alerts from the top of the screen.
@@ -285,19 +280,4 @@ Serving to the public from the Android
     Android, and look at the client IP in the server log that prints 
     on the computer screen.
 
-TODO
-    This TODO list is mostly converted into github issues, generally most 
-    important first:
-        https://github.com/switham/pyinthephone/issues
-
-    Below are the issues I haven't typed in there.
-    
-    Transition to editor / runnable script style of work.
-    
-    Implementation / code-organization / code-style issues
-        I wish I could run it in a chroot.
-        Make it a completely stand-alone package? (Clone SL4A?)
-        Make the interface more like flask's (e.g. @app.route() instead of @route())
-        Use monospace font in a non-pre area?
-        Keep the stuff in the DOM instead of the server... or both?
-                
+ -end-
