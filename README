@@ -13,14 +13,14 @@ Both of these run in your phone (or your computer; see below).
 PyInThePhone is at the prototype stage.  See the issues list at
     https://github.com/switham/pyinthephone/issues
 
-PyInThePhone requires SL4A, Scripting Layer for Android, to work.  There are 
-instructions for setting everything up from scratch and using pyinthephone,
-below.
+PyInThePhone requires SL4A, Scripting Layer for Android,
+and PythonForAndroid, to work.  There are instructions for setting 
+everything up from scratch and using pyinthephone, below.
 
 PyInThePhone was inspired by a talk by Jessica McKellar,
 and by iPython, which has a beautiful notebook feature
-with matplotlib graphics in the notebook.  There is someone working on 
-getting all the pieces of iPython compiled and working on Android.
+with matplotlib graphics in the notebook.  (There is someone working on 
+getting all the pieces of iPython compiled and working on Android.)
 
 Meanwhile, this prototype-stage project serves an interactive Python
 interpreter, from a phone, to the stock browser on the phone.  
