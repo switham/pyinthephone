@@ -132,15 +132,17 @@ def html_trailer(environ):
     return [fill_template(trailer_template, locals())]
 
 
-class HTML_safe_dict(object):
+class HTML_dict_wrapper(object):
     """
     An instance of this class forms a dict-like wrapper around 1 or 2 dicts.
-    If the element requested is in safe_dict:
-        an html-safe, string version of the element is returned.
+    Say dw = HTML_dict_wrapper(safe_dict, raw_dict).
+    Then dw[key] returns...
+    If key is in safe_dict:
+        an html-safe, string version of the safe_dict[key] is returned.
         These safe outputs have their quotation marks escaped
         so that they can be used within html attribute strings.
-    else if the element is in raw_dict:
-        the unchanged element of raw_dict is returned.
+    else if key is in raw_dict:
+        then raw_dict[key], unchanged, is returned.
 
     This is not suitable for URL query parameters.
     """
@@ -161,9 +163,9 @@ def fill_template(template, safe_dict, raw_dict={}):
     """
     If dict contains, e.g., "A": "foo", then
     "%(A)s" in template will be replaced by "foo".
-    See HTML_safe_dict above for treatment of safe_dict and raw_dict elements.
+    See HTML_dict_wrapper above for treatment of safe_dict and raw_dict elements.
     """
-    return template % HTML_safe_dict(safe_dict, raw_dict)
+    return template % HTML_dict_wrapper(safe_dict, raw_dict)
     
 
 ROUTES = {}
