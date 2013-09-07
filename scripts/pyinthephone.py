@@ -524,7 +524,7 @@ def interpret(code_text):
             exec code1 in NOTEBOOK_GLOBALS
         if code2:
             exec code2 in NOTEBOOK_GLOBALS
-    except Exception:
+    except Exception, KeyboardInterrupt:
         trace = traceback.format_exc()
     finally:
         sys.stdout = saved_stdout
