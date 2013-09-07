@@ -6,6 +6,7 @@ import sys
 import ast
 import traceback
 import StringIO
+import multiprocessing
 
 
 def get_input_string():
@@ -27,9 +28,18 @@ def unixify_newlines(text):
     return text.replace('\r\n', '\n').replace('\r', '\n')
 
 
-NOTEBOOK_GLOBALS = {}
+def be_worker(child_conn):
+    worker_globals = {}
+    while True:
+        do_run, code_string = child_conn.recv()
+        if not do_run:
+            break
 
-def interpret(code_string):
+        response, trace = interpret(code_string, worker_globals)
+        child_conn.send( (True, response, trace) )
+        
+
+def interpret(code_string, worker_globals):
     saved_stdout = sys.stdout
     saved_stderr = sys.stderr
     output = StringIO.StringIO()
@@ -48,9 +58,9 @@ def interpret(code_string):
             code1 = compile(tree, "<your input>", "exec")
 
         if code1:
-            exec code1 in NOTEBOOK_GLOBALS
+            exec code1 in worker_globals
         if code2:
-            exec code2 in NOTEBOOK_GLOBALS
+            exec code2 in worker_globals
     except Exception, KeyboardInterrupt:
         trace = traceback.format_exc()
     finally:
@@ -60,15 +70,27 @@ def interpret(code_string):
 
 
 if __name__ == "__main__":
+    parent_conn, child_conn = multiprocessing.Pipe()
+    p = multiprocessing.Process(target=be_worker, args=(child_conn,))
+    p.start()
+
     while True:
         input_string = get_input_string()
         if not input_string:
+            parent_conn.send( (False, "", "") )
             break
 
         print "-----"
-        response, trace = interpret(input_string)
+        parent_conn.send( (True, input_string) )
+        alive, response, trace = parent_conn.recv()
         if response:
             print response,
         if trace:
             print trace,
         print "====="
+        if not alive:
+            break
+        
+    print "Worker quitting..."
+    p.join()
+    print "Worker quit."
