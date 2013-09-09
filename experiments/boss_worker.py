@@ -1,17 +1,22 @@
 #!/usr/bin/env python
 """
-run_worker.py -- Experiment running Python code in a subprocess.
+    Experiment running Python code in a subprocess.
     This runs a Python shell (an ugly one) on the command line,
         but all the work is done in a worker subprocess.
-    The worker keeps the Python globals between tasks.
+    The worker keeps the Python globals, imported modules,
+        and defined functions and classes between tasks.
     Output can show up in dribs and drabs with pauses between.
-    Stdout and stderr streams are multiplexed through the pipe but
-    distinguished.
+    Stdout and stderr streams are multiplexed through a pipe but
+    distinguished.  (The difference isn't shown in this demo.)
     Outputs are buffered, with flushing both at newlines and
         when the interpreted code calls flush() "manually".
     ^C from the keyboard is caught and relayed to the worker
-        by calling os.kill(worker.pid, SIGINT).
-    Exceptions and ^C print tracebacks (needs some trimming).
+        by calling os.kill(worker.pid, signal.SIGINT).
+    Tracebacks (overlong) are printed for exceptions and ^C.
+
+    This file contains both the boss- and worker-side code.
+    See test_worker, below, for an illustrative task to give
+    the worker.
 """
 
 import sys
@@ -66,13 +71,13 @@ class Fd_pipe_wrapper():
     Decoding where lines end is up to the code at the other end of the pipe.
     
     To signal that the fds have closed (all together), code outside this
-    class can
+    class, do this:
         conn.send({"eof": True})
     This is not sent by the wrappers' close() method, on the theory that
     there are multple streams to close, but only one eof message should
     be sent to close them all together.
     
-    There is no code in this class to interpret these dictionaries on the
+    There is no code in this class to interpret the sent dictionaries ata the
     other end of the pipe.
     
     Thanks to ibell at http://stackoverflow.com/questions/11129414
@@ -85,7 +90,7 @@ class Fd_pipe_wrapper():
         self.conn.send({"eof": False, "fd": self.fd, "str": string})
         
     def flush(self):
-        # This class does no buffering of its own.
+        # This class does no buffering of its own.  But see Tty_buffer below.
         pass
     
     def close(self):
@@ -126,25 +131,25 @@ class Tty_buffer(object):
         self.flush()
     
 
-def be_worker(child_conn):
+def worker_main(worker_conn):
     """
     Within the worker process, this is the "target" function that is run.
-    It's the read-eval-print loop within the worker.
-    It has a globals dictionary that persists between code_string jobs.
-    child_con is the worker's end of the master-worker pipe.
+    It's the Python read-eval-print loop within the worker.
+    It has a globals dictionary that persists between code_string tasks.
+    worker_conn is the worker's end of the boss-to-worker pipe.
     """
     worker_globals = {}
     while True:
-        do_run, code_string = child_conn.recv()
+        do_run, code_string = worker_conn.recv()
         if not do_run:
             break
 
-        stdout = Tty_buffer(Fd_pipe_wrapper(child_conn, 0))
-        stderr = Tty_buffer(Fd_pipe_wrapper(child_conn, 1))
+        stdout = Tty_buffer(Fd_pipe_wrapper(worker_conn, 0))
+        stderr = Tty_buffer(Fd_pipe_wrapper(worker_conn, 1))
         interpret(code_string, worker_globals, stdout, stderr)
         stdout.flush()
         stderr.flush()
-        child_conn.send({"eof": True})
+        worker_conn.send({"eof": True})
 
 
 def interpret(code_string, worker_globals, stdout, stderr):
@@ -153,7 +158,7 @@ def interpret(code_string, worker_globals, stdout, stderr):
         using the given globals dict,
         and with the given stdout and stderr file-like objects.
     If the last line in code_string is an expression, print its value.
-    Handle printing stack traces from exceptions, especially ^C.
+    Print stack traces from exceptions, including ^C/KeyboardInterrupt/SIGINT.
     """
     saved_stdout = sys.stdout
     saved_stderr = sys.stderr
@@ -182,12 +187,15 @@ def interpret(code_string, worker_globals, stdout, stderr):
         sys.stderr = saved_stderr
 
 
-def test_flush():
+def worker_test():
     """
-    Test how automatic and forced flushing work for stdout.
+    A test to run within the worker.  This lets you see...
+      o  output appearing gradually (worker sleeps between prints)
+      o  automatic (newline) and forced (flush()) flushing of stdout
+      o  how the system responds to ^C.
     You can get the worker to run this by saying
-        from run_worker import test_Flush
-        test_flush()
+        from boss_worker import worker_test
+        worker_test()
     """
     for i in range(10):
         for j in range(10):
@@ -200,20 +208,23 @@ def test_flush():
         print
 
 
-if __name__ == "__main__":
-    # Set up a "worker" process and connect to it with a two-way pipe.
-    # Do the master side read-eval-print loop, where
-    #     "read" takes multi-line Python input ended with ^D,
-    #     "eval" means tell the worker to eval and send outputs,
-    #     "print" means loop over and print outputs till the worker is done.
-    # Handle ^C by just relaying it to the worker
-    # (or a second ^C kills the worker and quits entirely).
-    # ^D with no input signals to quit.
-    parent_conn, child_conn = multiprocessing.Pipe()
-    worker = multiprocessing.Process(target=be_worker, args=(child_conn,))
+def boss_main():
+    """
+    The main loop for the boss.
+    Set up one worker multiprocessing.Process connected with a two-way pipe.
+    Do the boss side of a Python read-eval-print loop, where
+        "read" means get multi-line input from the terminal, ended with ^D,
+             (^D with no input means quit.)
+        "eval" means send input to worker, which evals and sends outputs back,
+        "print" outputs as they come back, till the worker says it's done.
+    Handle ^C by just relaying it to the worker to interrupt the current task.
+        (or a second ^C kills the worker and quits entirely).
+    """
+    boss_conn, worker_conn = multiprocessing.Pipe()
+    worker = multiprocessing.Process(target=worker_main, args=(worker_conn,))
     worker.start()
 
-    # Detach child from parent process group so it doesn't receive
+    # Detach worker from boss's process group so it doesn't receive
     # the ^C from the keyboard, but only indirectly from interrupt_p() below.
     os.setpgid(worker.pid, worker.pid)
     default_intr = signal.getsignal(signal.SIGINT)
@@ -227,14 +238,14 @@ if __name__ == "__main__":
 
             def interrupt_p(sig_num, stack_frame):
                 os.kill(worker.pid, signal.SIGINT)
-                # If there's another ^C, interrupt the parent (this process).
+                # If there's another ^C, interrupt the boss (this process).
                 signal.signal(signal.SIGINT, default_intr)
 
             signal.signal(signal.SIGINT, interrupt_p)
-            parent_conn.send( (True, input_string) )
+            boss_conn.send( (True, input_string) )
             while True:
                 try:
-                    chunk = parent_conn.recv()
+                    chunk = boss_conn.recv()
                     if chunk["eof"]:
                         break
 
@@ -242,7 +253,7 @@ if __name__ == "__main__":
                     sys.stdout.flush()
                 except IOError as (code, msg):
                     # Catch "interrupted system call" from ^C
-                    # during parent_conn.recv() above, and ignore.
+                    # during boss_conn.recv() above, and ignore.
                     if code == errno.EINTR:
                         continue
 
@@ -250,7 +261,11 @@ if __name__ == "__main__":
 
             signal.signal(signal.SIGINT, default_intr)
             print "====="
-        parent_conn.send( (False, "") )
+        boss_conn.send( (False, "") )
         worker.join()
     except KeyboardInterrupt:
         os.kill(worker.pid, signal.SIGKILL)
+
+
+if __name__ == "__main__":
+    boss_main()
