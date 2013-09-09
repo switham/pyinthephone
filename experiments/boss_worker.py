@@ -194,7 +194,7 @@ def worker_test():
       o  automatic (newline) and forced (flush()) flushing of stdout
       o  how the system responds to ^C.
     You can get the worker to run this by saying
-        from boss_worker import worker_test
+        from boss_worker import *
         worker_test()
     """
     print "I am worker pid", os.getpid()
@@ -209,21 +209,26 @@ def worker_test():
         print
 
 
-def middle_manager_test():
+def middle_manager_test(level=1):
     """
     A test to run within the worker.  The worker becomes a boss to
     another worker, tells subworker to run worker_test (above), and
     boasts during the process.
 
     This shows output and ^C (if you like) being relayed two steps.
+    Not really an essential feature but once I thought of it...
 
     You can get the worker to run this by saying
         from boss_worker import *
         middle_manager_test()
     """
-    print "I am middle-manager pid", os.getpid()
+    print "I am level", level, "middle-manager pid", os.getpid()
     print "* * *"
-    boss_main("from boss_worker import *\nworker_test()")
+    if level <= 1:
+	task = "worker_test()"
+    else:
+        task = "middle_manager_test(%d)" % (level - 1)
+    boss_main("from boss_worker import *\n" + task)
     print "*****"
     print "I am pid %d, tired of middle management." % os.getpid()
     print "***********"
