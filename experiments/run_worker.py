@@ -9,6 +9,8 @@ import traceback
 import StringIO
 import multiprocessing
 import time
+import signal
+import errno
 
 
 def get_input_string():
@@ -97,9 +99,10 @@ class Tty_buffer(object):
                 self.buffer = self.buffer[p + 1:]
 
     def flush(self):
-        self.file.write(self.buffer)
+        if self.buffer:
+            self.file.write(self.buffer)
+            self.buffer = ""
         self.file.flush()
-        self.buffer = ""
 
     def close(self):
         self.flush()
@@ -118,7 +121,7 @@ def be_worker(child_conn):
         stdout.flush()
         stderr.flush()
         child_conn.send({"eof": True})
-        
+
 
 def interpret(code_string, worker_globals, stdout, stderr):
     saved_stdout = sys.stdout
@@ -140,16 +143,19 @@ def interpret(code_string, worker_globals, stdout, stderr):
             exec code1 in worker_globals
         if code2:
             exec code2 in worker_globals
-    except Exception, KeyboardInterrupt:
+    except:
+        print >>sys.stdout  # Flush and newline.
         print >>sys.stderr, traceback.format_exc()
     finally:
+        sys.stdout.flush()
         sys.stdout = saved_stdout
+        sys.stderr.flush()
         sys.stderr = saved_stderr
 
 
 def test_flush():
     """
-    Test how automatic and forced flushing works for stdout.
+    Test how automatic and forced flushing work for stdout.
     You can get the worker to run this by saying
         from run_worker import test_Flush
         test_flush()
@@ -159,9 +165,10 @@ def test_flush():
             print i * 10 + j,
             time.sleep(.1)
             if i < 5:
+                # The first five lines flush every number printed.
                 sys.stdout.flush()
+        # All lines flush at the newline.
         print
-    
 
 
 if __name__ == "__main__":
@@ -169,8 +176,11 @@ if __name__ == "__main__":
     p = multiprocessing.Process(target=be_worker, args=(child_conn,))
     p.start()
 
-    print "PARENT PID =", os.getpid()
-    print "CHILD PID =", p.pid
+    print "PARENT PID =", str(os.getpid()) + ", PGID =", os.getpgid(os.getpid())
+    # Detach child from parent process group so it doesn't receive
+    # the ^C from the keyboard, but only indirectly from interrupt_p() below.
+    os.setpgid(p.pid, p.pid)
+    print "CHILD PID =", str(p.pid) + ", PGID =", os.getpgid(p.pid)
     print
     while True:
         input_string = get_input_string()
@@ -179,14 +189,32 @@ if __name__ == "__main__":
             break
 
         print "-----"
+        
+        def interrupt_p(sig_num, stack_frame):
+            os.kill(p.pid, signal.SIGINT)
+            # If there's another ^C, interrupt the parent for real.
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
+            
+        signal.signal(signal.SIGINT, interrupt_p)
         parent_conn.send( (True, input_string) )
         while True:
-            chunk = parent_conn.recv()
-            if chunk["eof"]:
-                break
-            
-            sys.stdout.write(chunk["str"])
-            sys.stdout.flush()
+            try:
+                chunk = parent_conn.recv()
+                if chunk["eof"]:
+                    break
+
+                sys.stdout.write(chunk["str"])
+                sys.stdout.flush()
+            except IOError as (code, msg):
+                # Catch "interrupted system call" from ^C
+                # (during parent_conn.recv() above), and ignore.
+                if code == errno.EINTR:
+                    continue
+                
+                raise
+                
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        
         print "====="
         
     print "Worker quitting..."
