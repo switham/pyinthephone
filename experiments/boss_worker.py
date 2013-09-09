@@ -15,8 +15,8 @@
     Tracebacks (overlong) are printed for exceptions and ^C.
 
     This file contains both the boss- and worker-side code.
-    See test_worker, below, for an illustrative task to give
-    the worker.
+    See worker_test and middle_manager_test, below,
+    for illustrative tasks to give the worker.
 """
 
 import sys
