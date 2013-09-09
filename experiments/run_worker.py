@@ -1,12 +1,23 @@
 #!/usr/bin/env python
-""" run_worker.py -- Experiment running python code in a subprocess. """
+"""
+run_worker.py -- Experiment running Python code in a subprocess.
+    This runs a Python shell (an ugly one) on the command line,
+        but all the work is done in a worker subprocess.
+    The worker keeps the Python globals between tasks.
+    Output can show up in dribs and drabs with pauses between.
+    Stdout and stderr streams are multiplexed through the pipe but
+    distinguished.
+    Outputs are buffered, with flushing both at newlines and
+        when the interpreted code calls flush() "manually".
+    ^C from the keyboard is caught and relayed to the worker
+        by calling os.kill(worker.pid, SIGINT).
+    Exceptions and ^C print tracebacks (needs some trimming).
+"""
 
-from sys import stdin
 import sys
 import os
 import ast
 import traceback
-import StringIO
 import multiprocessing
 import time
 import signal
@@ -16,10 +27,10 @@ import errno
 def get_input_string():
     """ Get (multi-line) input from stdin, terminated by ^D (EOF). """
     lines = []
-    # "for line in stdin" has buffering which causes problems.
+    # "for line in sys.stdin" has buffering which causes problems.
     while True:
         try:
-            line = stdin.readline()
+            line = sys.stdin.readline()
         except KeyboardInterrupt:
             if lines:
                 print >>sys.stderr, "\nClearing input."
@@ -199,12 +210,12 @@ if __name__ == "__main__":
     # (or a second ^C kills the worker and quits entirely).
     # ^D with no input signals to quit.
     parent_conn, child_conn = multiprocessing.Pipe()
-    p = multiprocessing.Process(target=be_worker, args=(child_conn,))
-    p.start()
+    worker = multiprocessing.Process(target=be_worker, args=(child_conn,))
+    worker.start()
 
     # Detach child from parent process group so it doesn't receive
     # the ^C from the keyboard, but only indirectly from interrupt_p() below.
-    os.setpgid(p.pid, p.pid)
+    os.setpgid(worker.pid, worker.pid)
     default_intr = signal.getsignal(signal.SIGINT)
     try:
         while True:
@@ -215,7 +226,7 @@ if __name__ == "__main__":
             print "-----"
 
             def interrupt_p(sig_num, stack_frame):
-                os.kill(p.pid, signal.SIGINT)
+                os.kill(worker.pid, signal.SIGINT)
                 # If there's another ^C, interrupt the parent (this process).
                 signal.signal(signal.SIGINT, default_intr)
 
@@ -240,6 +251,6 @@ if __name__ == "__main__":
             signal.signal(signal.SIGINT, default_intr)
             print "====="
         parent_conn.send( (False, "") )
-        p.join()
+        worker.join()
     except KeyboardInterrupt:
-        os.kill(p.pid, signal.SIGKILL)
+        os.kill(worker.pid, signal.SIGKILL)
