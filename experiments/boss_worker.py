@@ -29,8 +29,8 @@ import signal
 import errno
 
 
-def get_input_string():
-    """ Get (multi-line) input from stdin, terminated by ^D (EOF). """
+def stdin_readlines():
+    """ Get list of \n-terminated lines from stdin, terminated by ^D (EOF). """
     lines = []
     # "for line in sys.stdin" has buffering which causes problems.
     while True:
@@ -47,8 +47,8 @@ def get_input_string():
         if not line:
             break
 
-        lines += line
-    return "".join(lines)
+        lines.append(line)
+    return lines
 
 
 class Fd_pipe_wrapper():
@@ -197,6 +197,7 @@ def worker_test():
         from boss_worker import worker_test
         worker_test()
     """
+    print "I am worker pid", os.getpid()
     for i in range(10):
         for j in range(10):
             print i * 10 + j,
@@ -208,7 +209,27 @@ def worker_test():
         print
 
 
-def boss_main():
+def middle_manager_test():
+    """
+    A test to run within the worker.  The worker becomes a boss to
+    another worker, tells subworker to run worker_test (above), and
+    boasts during the process.
+
+    This shows output and ^C (if you like) being relayed two steps.
+
+    You can get the worker to run this by saying
+        from boss_worker import *
+        middle_manager_test()
+    """
+    print "I am middle-manager pid", os.getpid()
+    print "* * *"
+    boss_main("from boss_worker import *\nworker_test()")
+    print "*****"
+    print "I am pid %d, tired of middle management." % os.getpid()
+    print "***********"
+
+
+def boss_main(initial_task=None):
     """
     The main loop for the boss.
     Set up one worker multiprocessing.Process connected with a two-way pipe.
@@ -224,48 +245,58 @@ def boss_main():
     worker = multiprocessing.Process(target=worker_main, args=(worker_conn,))
     worker.start()
 
-    # Detach worker from boss's process group so it doesn't receive
-    # the ^C from the keyboard, but only indirectly from interrupt_p() below.
+    # Detach worker from boss's process group so it doesn't receive the ^C
+    # from the keyboard, but only indirectly from interrupt_worker() below.
     os.setpgid(worker.pid, worker.pid)
-    default_intr = signal.getsignal(signal.SIGINT)
     try:
+	if initial_task:
+	    print initial_task
+	    oversee_one_task(initial_task, worker, boss_conn)
         while True:
-            input_string = get_input_string()
-            if not input_string:
+            task_string = "".join(stdin_readlines())
+            if not task_string:
                 break
 
-            print "-----"
-
-            def interrupt_p(sig_num, stack_frame):
-                os.kill(worker.pid, signal.SIGINT)
-                # If there's another ^C, interrupt the boss (this process).
-                signal.signal(signal.SIGINT, default_intr)
-
-            signal.signal(signal.SIGINT, interrupt_p)
-            boss_conn.send( (True, input_string) )
-            while True:
-                try:
-                    chunk = boss_conn.recv()
-                    if chunk["eof"]:
-                        break
-
-                    sys.stdout.write(chunk["str"])
-                    sys.stdout.flush()
-                except IOError as (code, msg):
-                    # Catch "interrupted system call" from ^C
-                    # during boss_conn.recv() above, and ignore.
-                    if code == errno.EINTR:
-                        continue
-
-                    raise
-
-            signal.signal(signal.SIGINT, default_intr)
-            print "====="
+	    oversee_one_task(task_string, worker, boss_conn)
         boss_conn.send( (False, "") )
         worker.join()
     except KeyboardInterrupt:
         os.kill(worker.pid, signal.SIGKILL)
+	
+
+DEFAULT_SIGINT_HANDLER = signal.getsignal(signal.SIGINT)
+
+
+def oversee_one_task(task_string, worker, boss_conn):
+    """" Give the worker one task, echo the results, and handle ^C. """
+    
+    def interrupt_worker(sig_num, stack_frame):
+	os.kill(worker.pid, signal.SIGINT)
+	# If there's another ^C, interrupt the boss (this process).
+	signal.signal(signal.SIGINT, DEFAULT_SIGINT_HANDLER)
+
+    print "-----"
+    signal.signal(signal.SIGINT, interrupt_worker)
+    boss_conn.send( (True, task_string) )
+    while True:
+	try:
+	    chunk = boss_conn.recv()
+	    if chunk["eof"]:
+		break
+
+	    sys.stdout.write(chunk["str"])
+	    sys.stdout.flush()
+	except IOError as (code, msg):
+	    # Catch "interrupted system call" from ^C
+	    # during boss_conn.recv() above, and ignore.
+	    if code == errno.EINTR:
+		continue
+
+	    raise
+
+    signal.signal(signal.SIGINT, DEFAULT_SIGINT_HANDLER)
+    print "====="
 
 
 if __name__ == "__main__":
-    boss_main()
+    boss_main(" ".join(sys.argv[1:]))
