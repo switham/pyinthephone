@@ -15,16 +15,22 @@ import errno
 
 def get_input_string():
     lines = []
-    try:
-        # "for line in stdin" has buffering which causes problems.
-        while True:
+    # "for line in stdin" has buffering which causes problems.
+    while True:
+        try:
             line = stdin.readline()
-            if not line:
-                break
-            
-            lines += line
-    except KeyboardInterrupt:
-        pass
+        except KeyboardInterrupt:
+            if lines:
+                print >>sys.stderr, "\nClearing input."
+                lines = []
+                continue
+
+            else:
+                raise
+        if not line:
+            break
+
+        lines += line
     return "".join(lines)
 
 
@@ -145,7 +151,7 @@ def interpret(code_string, worker_globals, stdout, stderr):
             exec code2 in worker_globals
     except:
         print >>sys.stdout  # Flush and newline.
-        print >>sys.stderr, traceback.format_exc()
+        sys.stderr.write(traceback.format_exc())  # Includes final newline.
     finally:
         sys.stdout.flush()
         sys.stdout = saved_stdout
@@ -176,47 +182,44 @@ if __name__ == "__main__":
     p = multiprocessing.Process(target=be_worker, args=(child_conn,))
     p.start()
 
-    print "PARENT PID =", str(os.getpid()) + ", PGID =", os.getpgid(os.getpid())
     # Detach child from parent process group so it doesn't receive
     # the ^C from the keyboard, but only indirectly from interrupt_p() below.
     os.setpgid(p.pid, p.pid)
-    print "CHILD PID =", str(p.pid) + ", PGID =", os.getpgid(p.pid)
-    print
-    while True:
-        input_string = get_input_string()
-        if not input_string:
-            parent_conn.send( (False, "") )
-            break
-
-        print "-----"
-        
-        def interrupt_p(sig_num, stack_frame):
-            os.kill(p.pid, signal.SIGINT)
-            # If there's another ^C, interrupt the parent for real.
-            signal.signal(signal.SIGINT, signal.SIG_DFL)
-            
-        signal.signal(signal.SIGINT, interrupt_p)
-        parent_conn.send( (True, input_string) )
+    default_intr = signal.getsignal(signal.SIGINT)
+    try:
         while True:
-            try:
-                chunk = parent_conn.recv()
-                if chunk["eof"]:
-                    break
+            input_string = get_input_string()
+            if not input_string:
+                break
 
-                sys.stdout.write(chunk["str"])
-                sys.stdout.flush()
-            except IOError as (code, msg):
-                # Catch "interrupted system call" from ^C
-                # (during parent_conn.recv() above), and ignore.
-                if code == errno.EINTR:
-                    continue
-                
-                raise
-                
-        signal.signal(signal.SIGINT, signal.SIG_DFL)
-        
-        print "====="
-        
-    print "Worker quitting..."
-    p.join()
-    print "Worker quit."
+            print "-----"
+
+            def interrupt_p(sig_num, stack_frame):
+                os.kill(p.pid, signal.SIGINT)
+                # If there's another ^C, interrupt the parent (this process).
+                signal.signal(signal.SIGINT, default_intr)
+
+            signal.signal(signal.SIGINT, interrupt_p)
+            parent_conn.send( (True, input_string) )
+            while True:
+                try:
+                    chunk = parent_conn.recv()
+                    if chunk["eof"]:
+                        break
+
+                    sys.stdout.write(chunk["str"])
+                    sys.stdout.flush()
+                except IOError as (code, msg):
+                    # Catch "interrupted system call" from ^C
+                    # (during parent_conn.recv() above), and ignore.
+                    if code == errno.EINTR:
+                        continue
+
+                    raise
+
+            signal.signal(signal.SIGINT, default_intr)
+            print "====="
+        parent_conn.send( (False, "") )
+        p.join()
+    except KeyboardInterrupt:
+        os.kill(p.pid, signal.SIGKILL)
