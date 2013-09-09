@@ -14,6 +14,7 @@ import errno
 
 
 def get_input_string():
+    """ Get (multi-line) input from stdin, terminated by ^D (EOF). """
     lines = []
     # "for line in stdin" has buffering which causes problems.
     while True:
@@ -54,8 +55,8 @@ class Fd_pipe_wrapper():
     Decoding where lines end is up to the code at the other end of the pipe.
     
     To signal that the fds have closed (all together), code outside this
-    class can send:
-        {"eof": True}
+    class can
+        conn.send({"eof": True})
     This is not sent by the wrappers' close() method, on the theory that
     there are multple streams to close, but only one eof message should
     be sent to close them all together.
@@ -115,6 +116,12 @@ class Tty_buffer(object):
     
 
 def be_worker(child_conn):
+    """
+    Within the worker process, this is the "target" function that is run.
+    It's the read-eval-print loop within the worker.
+    It has a globals dictionary that persists between code_string jobs.
+    child_con is the worker's end of the master-worker pipe.
+    """
     worker_globals = {}
     while True:
         do_run, code_string = child_conn.recv()
@@ -130,6 +137,13 @@ def be_worker(child_conn):
 
 
 def interpret(code_string, worker_globals, stdout, stderr):
+    """
+    Parse the (multi-line) Python code_string, then exec it
+        using the given globals dict,
+        and with the given stdout and stderr file-like objects.
+    If the last line in code_string is an expression, print its value.
+    Handle printing stack traces from exceptions, especially ^C.
+    """
     saved_stdout = sys.stdout
     saved_stderr = sys.stderr
     try:
@@ -153,9 +167,7 @@ def interpret(code_string, worker_globals, stdout, stderr):
         print >>sys.stdout  # Flush and newline.
         sys.stderr.write(traceback.format_exc())  # Includes final newline.
     finally:
-        sys.stdout.flush()
         sys.stdout = saved_stdout
-        sys.stderr.flush()
         sys.stderr = saved_stderr
 
 
@@ -178,6 +190,14 @@ def test_flush():
 
 
 if __name__ == "__main__":
+    # Set up a "worker" process and connect to it with a two-way pipe.
+    # Do the master side read-eval-print loop, where
+    #     "read" takes multi-line Python input ended with ^D,
+    #     "eval" means tell the worker to eval and send outputs,
+    #     "print" means loop over and print outputs till the worker is done.
+    # Handle ^C by just relaying it to the worker
+    # (or a second ^C kills the worker and quits entirely).
+    # ^D with no input signals to quit.
     parent_conn, child_conn = multiprocessing.Pipe()
     p = multiprocessing.Process(target=be_worker, args=(child_conn,))
     p.start()
@@ -211,7 +231,7 @@ if __name__ == "__main__":
                     sys.stdout.flush()
                 except IOError as (code, msg):
                     # Catch "interrupted system call" from ^C
-                    # (during parent_conn.recv() above), and ignore.
+                    # during parent_conn.recv() above, and ignore.
                     if code == errno.EINTR:
                         continue
 
