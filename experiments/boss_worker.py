@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 """
     Experiment running Python code in a subprocess.
-    This runs a Python shell (an ugly one) on the command line,
-        but all the work is done in a worker subprocess.
+    This runs a minimal, ugly Python shell on the command line,
+        with all the work done in a worker subprocess.
     The worker keeps the Python globals, imported modules,
         and defined functions and classes between tasks.
     Output can show up in dribs and drabs with pauses between.
-    Stdout and stderr streams are multiplexed through a pipe but
-    distinguished.  (The difference isn't shown in this demo.)
+    Stdout and stderr streams are multiplexed through a pipe and
+    come out the terminal's stdout and stderr respectively.
     Outputs are buffered, with flushing both at newlines and
         when the interpreted code calls flush() "manually".
     ^C from the keyboard is caught and relayed to the worker
@@ -27,6 +27,7 @@ import multiprocessing
 import time
 import signal
 import errno
+from pty import STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO
 
 
 def stdin_readlines():
@@ -56,8 +57,8 @@ class Fd_pipe_wrapper():
     Wrapper to redirect an output stream into a multiprocessing.Connection pipe-end,
     in such a way that it can be multiplexed with other output streams.
     As in:
-        stdout = Fd_pipe_wrapper(conn, 0)
-        stderr = Fd_pipe_wrapper(conn, 1)
+        stdout = Fd_pipe_wrapper(conn, STDOUT_FILENO)
+        stderr = Fd_pipe_wrapper(conn, STDERR_FILENO)
         print >>stdout, "Output to stdout."
         print >>stderr, "Message to stderr."
         conn.send({"eof": True})
@@ -71,30 +72,36 @@ class Fd_pipe_wrapper():
     Decoding where lines end is up to the code at the other end of the pipe.
     
     To signal that the fds have closed (all together), code outside this
-    class, do this:
+    class should do this:
         conn.send({"eof": True})
     This is not sent by the wrappers' close() method, on the theory that
     there are multple streams to close, but only one eof message should
     be sent to close them all together.
     
-    There is no code in this class to interpret the sent dictionaries ata the
+    There is no code in this class to interpret the sent dictionaries at the
     other end of the pipe.
     
     Thanks to ibell at http://stackoverflow.com/questions/11129414
     """
-    def __init__(self, connection, fd, buffer_size=2048):
+    def __init__(self, connection, fd):
         self.conn = connection
         self.fd = fd
+
+    def __repr__(self):
+        return "Fd_pipe_wrapper(%r, %d)" % (self.conn, self.fd)
         
-    def write(self, string):
-        self.conn.send({"eof": False, "fd": self.fd, "str": string})
+    def write(self, text):
+        self.conn.send({"eof": False, "fd": self.fd, "text": text})
         
     def flush(self):
-        # This class does no buffering of its own.  But see Tty_buffer below.
+        """
+        This class does no buffering of its own,
+        but see the Tty_buffer class.
+        """
         pass
     
     def close(self):
-        # See comments above about eof signalling.
+        """ See Fd_pipe_wrapper top docstring about how to signal EOF. """
         pass
 
 
@@ -107,6 +114,9 @@ class Tty_buffer(object):
         self.file = file_like_object
         self.buffsize = buffsize
         self.buffer = ""
+
+    def __repr__(self):
+        return "Tty_buffer(%r, buffsize=%d)" % (self.file, self.buffsize)
 
     def write(self, string):
         self.buffer += string
@@ -139,27 +149,29 @@ def worker_main(worker_conn):
     worker_conn is the worker's end of the boss-to-worker pipe.
     """
     worker_globals = {}
+    stdout = Tty_buffer(Fd_pipe_wrapper(worker_conn, STDOUT_FILENO))
+    stderr = Tty_buffer(Fd_pipe_wrapper(worker_conn, STDERR_FILENO))
+    stdin = open("/dev/null", "r")
     while True:
         do_run, code_string = worker_conn.recv()
         if not do_run:
             break
 
-        stdout = Tty_buffer(Fd_pipe_wrapper(worker_conn, 0))
-        stderr = Tty_buffer(Fd_pipe_wrapper(worker_conn, 1))
-        interpret(code_string, worker_globals, stdout, stderr)
+        interpret(code_string, worker_globals, stdin, stdout, stderr)
         stdout.flush()
         stderr.flush()
         worker_conn.send({"eof": True})
 
 
-def interpret(code_string, worker_globals, stdout, stderr):
+def interpret(code_string, worker_globals, stdin, stdout, stderr):
     """
     Parse the (multi-line) Python code_string, then exec it
         using the given globals dict,
-        and with the given stdout and stderr file-like objects.
+        and with the given stdio file-like objects.
     If the last line in code_string is an expression, print its value.
     Print stack traces from exceptions, including ^C/KeyboardInterrupt/SIGINT.
     """
+    saved_stdin = sys.stdin
     saved_stdout = sys.stdout
     saved_stderr = sys.stderr
     try:
@@ -183,6 +195,7 @@ def interpret(code_string, worker_globals, stdout, stderr):
         print >>sys.stdout  # Flush and newline.
         sys.stderr.write(traceback.format_exc())  # Includes final newline.
     finally:
+	sys.stdin = saved_stdin
         sys.stdout = saved_stdout
         sys.stderr = saved_stderr
 
@@ -289,8 +302,16 @@ def oversee_one_task(task_string, worker, boss_conn):
 	    if chunk["eof"]:
 		break
 
-	    sys.stdout.write(chunk["str"])
-	    sys.stdout.flush()
+            fd, text = chunk["fd"], chunk["text"]
+	    if fd == STDOUT_FILENO:
+		sys.stdout.write(text)
+                sys.stdout.flush()
+	    elif fd == STDERR_FILENO:
+	        sys.stderr.write(text)
+                sys.stderr.flush()
+	    else:
+	        sys.stderr.write(" FILENO? ")
+                sys.stderr.flush()
 	except IOError as (code, msg):
 	    # Catch "interrupted system call" from ^C
 	    # during boss_conn.recv() above, and ignore.
