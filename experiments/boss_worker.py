@@ -174,10 +174,11 @@ def interpret(code_string, worker_globals, stdin, stdout, stderr):
     saved_stdin = sys.stdin
     saved_stdout = sys.stdout
     saved_stderr = sys.stderr
-    try:
-        sys.stdout = stdout
-        sys.stderr = stderr
         
+    sys.stdin = stdin
+    sys.stdout = stdout
+    sys.stderr = stderr
+    try:
         tree = ast.parse(code_string, "<your input>")
         code1 = code2 = None
         if tree.body and isinstance(tree.body[-1], ast.Expr):
