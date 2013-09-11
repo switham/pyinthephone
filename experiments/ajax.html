@@ -5,17 +5,13 @@
 
         <script type="text/javascript">
         <!--
-            function onMore( dest, params )
-            {
+            function ajax_post( dest, params, responseHandler ) {
                 var xmlhttp;
-
                 xmlhttp=new XMLHttpRequest();
 
-                xmlhttp.onreadystatechange=function()
-                {
-                    if (xmlhttp.readyState==4 && xmlhttp.status==200)
-                    {
-                        document.getElementById( "bb" ).innerHTML += xmlhttp.responseText;
+                xmlhttp.onreadystatechange=function() {
+                    if (xmlhttp.readyState==4 && xmlhttp.status==200) {
+                        responseHandler(xmlhttp.responseText);
                     }
                 }
 
@@ -25,23 +21,21 @@
             }
 
 
-            function onClear( dest, params )
-            {
-                var xmlhttp;
-
-                xmlhttp=new XMLHttpRequest();
-
-                xmlhttp.onreadystatechange=function()
-                {
-                    if (xmlhttp.readyState==4 && xmlhttp.status==200)
-                    {
-                        document.getElementById( "bb" ).innerHTML = xmlhttp.responseText;
+            function onMore( id, dest, params ) {
+                ajax_post( dest, params,
+                    function(responseText) {
+                        document.getElementById( id ).innerHTML += responseText;
                     }
-                }
+                )
+            }
 
-                xmlhttp.open("POST",dest,true);
-                xmlhttp.setRequestHeader("Content-type","application/x-www-form-urlencoded");
-                xmlhttp.send( params ); 
+
+            function onClear( id, dest, params ) {
+                ajax_post( dest, params,
+                    function(responseText) {
+                        document.getElementById( id ).innerHTML = responseText;
+                    }
+                )
             }
 
 
@@ -52,8 +46,12 @@
     <body>
 
         <p id="bb"> abcdef </p>
-        <a href="javascript:onMore('more', '')">--more--</a>
-        <a href="javascript:onClear('clear', '')">--clear--</a>
+        <a href="javascript:onMore('bb', 'more', '')">--more--</a> &nbsp;&nbsp;&nbsp;
+        <a href="javascript:onClear('bb', 'clear', '')">--clear--</a>
+
+        <p id="cc"> abcdef </p>
+        <a href="javascript:onMore('cc', 'more', '')">--more--</a> &nbsp;&nbsp;&nbsp;
+        <a href="javascript:onClear('cc', 'clear', '')">--clear--</a>
 
     </body>
 

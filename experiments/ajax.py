@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-""" ajax1.py """
+""" ajax.py """
 
 from bottle import route, run
 from bottle import static_file
@@ -7,24 +7,25 @@ import os
 
 
 @route("/")
-def ajax1():
-    return static_file("ajax1.html", os.getcwd())
+def ajax():
+    return static_file("ajax.html", os.getcwd())
 
 
 COUNTER = 0
 
-@route("/more", method="POST")
-def aaa():
+@route("/more", method="ANY")
+def more():
     global COUNTER
-    
-    result ="<br>[%d]: uvwxyz" % COUNTER
-    COUNTER += 1
+
+    n = 16
+    result = ["<br>[%d]: uvwxyz\n" % c for c in range(COUNTER, COUNTER + n)]
+    COUNTER += n
     return result
 
 
 
 @route("/clear", method="POST")
-def aaa():
+def clear():
     global COUNTER
     
     COUNTER = 0
