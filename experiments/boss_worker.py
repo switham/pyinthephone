@@ -315,7 +315,7 @@ def oversee_one_task(task_string, worker, boss_conn):
 	        sys.stderr.write(text)
                 sys.stderr.flush()
 	    else:
-	        sys.stderr.write(" FILENO? ")
+	        sys.stderr.write(" FILENO %d? " % fd)
                 sys.stderr.flush()
 	except IOError as (code, msg):
 	    # Catch "interrupted system call" from ^C
