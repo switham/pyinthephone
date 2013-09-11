@@ -31,7 +31,10 @@ from pty import STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO
 
 
 def stdin_readlines():
-    """ Get list of \n-terminated lines from stdin, terminated by ^D (EOF). """
+    """
+    Get list of \n-terminated lines from stdin,
+    terminated by a blank line or end of file.
+    """
     lines = []
     # "for line in sys.stdin" has buffering which causes problems.
     while True:
@@ -46,6 +49,7 @@ def stdin_readlines():
             else:
                 raise
         if not line:
+            # i.e., end of file
             break
 
 	if line == '\n':
@@ -230,26 +234,24 @@ def worker_test():
 def middle_manager_test(level=1):
     """
     A test to run within the worker.  The worker becomes a boss to
-    another worker, tells subworker to run worker_test (above), and
-    boasts during the process.
+    another worker, tells the subworker to run worker_test (above), and
+    makes comments before and after.  This shows output and ^C (if you like)
+    being relayed two steps.
 
-    This shows output and ^C (if you like) being relayed two steps.
-    Not really an essential feature but once I thought of it...
+    Not really an essential feature but once I thought of it I had to do it.
 
     You can get the worker to run this by saying
         from boss_worker import *
         middle_manager_test()
     """
     print "I am level", level, "middle-manager pid", os.getpid()
-    print "* * *"
+    print "- - -"
     if level <= 1:
 	task = "worker_test()"
     else:
         task = "middle_manager_test(%d)" % (level - 1)
     boss_main("from boss_worker import *\n" + task)
-    print "*****"
-    print "I am pid %d, tired of middle management." % os.getpid()
-    print "***********"
+    print "I am pid %d, tired of level %d management." % (os.getpid(), level)
 
 
 def boss_main(initial_task=None):
@@ -257,12 +259,12 @@ def boss_main(initial_task=None):
     The main loop for the boss.
     Set up one worker multiprocessing.Process connected with a two-way pipe.
     Do the boss side of a Python read-eval-print loop, where
-        "read" means get multi-line input from the terminal, ended with ^D,
-             (^D with no input means quit.)
+        "read" means get multi-line input from the terminal, ended with a,
+             blank line (blank line alone means quit.)
         "eval" means send input to worker, which evals and sends outputs back,
         "print" outputs as they come back, till the worker says it's done.
     Handle ^C by just relaying it to the worker to interrupt the current task.
-        (or a second ^C kills the worker and quits entirely).
+        (a second ^C kills the worker and quits entirely).
     """
     boss_conn, worker_conn = multiprocessing.Pipe()
     worker = multiprocessing.Process(target=worker_main, args=(worker_conn,))
@@ -284,6 +286,9 @@ def boss_main(initial_task=None):
         boss_conn.send( (False, "") )
         worker.join()
     except KeyboardInterrupt:
+        # Normally ^C is caught in oversee_one_task().  We catch it here
+        # only if the user hits ^C a second time, or in an unexpected place.
+        # That means trouble; make sure the worker is cleaned up.
         os.kill(worker.pid, signal.SIGKILL)
 	
 
