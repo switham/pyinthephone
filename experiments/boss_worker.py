@@ -48,6 +48,10 @@ def stdin_readlines():
         if not line:
             break
 
+	if line == '\n':
+            # Blank line signals end of input (easier on Android).
+	    break
+
         lines.append(line)
     return lines
 
