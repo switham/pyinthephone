@@ -171,7 +171,42 @@ def worker_main(worker_conn):
         worker_conn.send({"eof": True})
 
 
-def interpret(code_string, worker_globals, stdin, stdout, stderr):
+def worker_print_exc(limit=None, file=sys.stderr,
+		     code_filename=None, code_string=None):
+    """
+    Like traceback.print_exc(), except:
+    1) Print traceback starting with the first entry about code_filename
+       (which in our case will be a string like "<your input>").
+    2) For lines in code_filename, include the appropriate line's text from
+       code_string. (print_exc() etc. can't fetch lines from not-real files.)
+    """
+    if code_filename == None:
+        traceback.print_exc(limit, file)
+        return
+
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    tb = traceback.extract_tb(exc_traceback)
+    for i, entry in enumerate(tb):
+	if entry[0] == code_filename:
+	    tb = tb[i:]
+	    break
+    else:
+	tb = []
+    if limit != None:
+        tb = tb[:min(len(tb), limit)]
+    if tb:
+        print >>file, "Traceback (most recent call last):"
+	code_lines = code_string.splitlines()
+	for i, (filename, line_no, fn_name, text) in enumerate(tb):
+	    if text == None and filename == code_filename:
+	        text = code_lines[line_no - 1].strip()
+		tb[i] = (filename, line_no, fn_name, text)
+        file.write("".join(traceback.format_list(tb)))
+    file.write("".join(traceback.format_exception_only(exc_type, exc_value)))
+    
+
+
+def interpret(code_string, worker_globals, stdin, stdout, stderr, code_filename="<your input>"):
     """
     Parse the (multi-line) Python code_string, then exec it
         using the given globals dict,
@@ -187,7 +222,7 @@ def interpret(code_string, worker_globals, stdin, stdout, stderr):
     sys.stdout = stdout
     sys.stderr = stderr
     try:
-        tree = ast.parse(code_string, "<your input>")
+        tree = ast.parse(code_string, code_filename)
         code1 = code2 = None
         if tree.body and isinstance(tree.body[-1], ast.Expr):
             last_line = ast.Interactive(tree.body[-1:])
@@ -202,7 +237,7 @@ def interpret(code_string, worker_globals, stdin, stdout, stderr):
             exec code2 in worker_globals
     except:
         print >>sys.stdout  # Flush and newline.
-        sys.stderr.write(traceback.format_exc())  # Includes final newline.
+	worker_print_exc(None, sys.stderr, code_filename, code_string)
     finally:
 	sys.stdin = saved_stdin
         sys.stdout = saved_stdout
