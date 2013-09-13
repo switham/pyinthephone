@@ -52,9 +52,9 @@ def stdin_readlines():
             # i.e., end of file
             break
 
-	if line == '\n':
+        if line == '\n':
             # Blank line signals end of input (easier on Android).
-	    break
+            break
 
         lines.append(line)
     return lines
@@ -172,7 +172,7 @@ def worker_main(worker_conn):
 
 
 def worker_print_exc(limit=None, file=sys.stderr,
-		     code_filename=None, code_string=None):
+                     code_filename=None, code_string=None):
     """
     Like traceback.print_exc(), except:
     1) Print traceback starting with the first entry about code_filename
@@ -187,20 +187,20 @@ def worker_print_exc(limit=None, file=sys.stderr,
     exc_type, exc_value, exc_traceback = sys.exc_info()
     tb = traceback.extract_tb(exc_traceback)
     for i, entry in enumerate(tb):
-	if entry[0] == code_filename:
-	    tb = tb[i:]
-	    break
+        if entry[0] == code_filename:
+            tb = tb[i:]
+            break
     else:
-	tb = []
+        tb = []
     if limit != None:
         tb = tb[:min(len(tb), limit)]
     if tb:
         print >>file, "Traceback (most recent call last):"
-	code_lines = code_string.splitlines()
-	for i, (filename, line_no, fn_name, text) in enumerate(tb):
-	    if text == None and filename == code_filename:
-	        text = code_lines[line_no - 1].strip()
-		tb[i] = (filename, line_no, fn_name, text)
+        code_lines = code_string.splitlines()
+        for i, (filename, line_no, fn_name, text) in enumerate(tb):
+            if text == None and filename == code_filename:
+                text = code_lines[line_no - 1].strip()
+                tb[i] = (filename, line_no, fn_name, text)
         file.write("".join(traceback.format_list(tb)))
     file.write("".join(traceback.format_exception_only(exc_type, exc_value)))
     
@@ -237,9 +237,9 @@ def interpret(code_string, worker_globals, stdin, stdout, stderr, code_filename=
             exec code2 in worker_globals
     except:
         print >>sys.stdout  # Flush and newline.
-	worker_print_exc(None, sys.stderr, code_filename, code_string)
+        worker_print_exc(None, sys.stderr, code_filename, code_string)
     finally:
-	sys.stdin = saved_stdin
+        sys.stdin = saved_stdin
         sys.stdout = saved_stdout
         sys.stderr = saved_stderr
 
@@ -282,7 +282,7 @@ def middle_manager_test(level=1):
     print "I am level", level, "middle-manager pid", os.getpid()
     print "- - -"
     if level <= 1:
-	task = "worker_test()"
+        task = "worker_test()"
     else:
         task = "middle_manager_test(%d)" % (level - 1)
     boss_main("from boss_worker import *\n" + task)
@@ -309,15 +309,15 @@ def boss_main(initial_task=None):
     # from the keyboard, but only indirectly from interrupt_worker() below.
     os.setpgid(worker.pid, worker.pid)
     try:
-	if initial_task:
-	    print initial_task
-	    oversee_one_task(initial_task, worker, boss_conn)
+        if initial_task:
+            print initial_task
+            oversee_one_task(initial_task, worker, boss_conn)
         while True:
             task_string = "".join(stdin_readlines())
             if not task_string:
                 break
 
-	    oversee_one_task(task_string, worker, boss_conn)
+            oversee_one_task(task_string, worker, boss_conn)
         boss_conn.send( (False, "") )
         worker.join()
     except KeyboardInterrupt:
@@ -325,7 +325,7 @@ def boss_main(initial_task=None):
         # only if the user hits ^C a second time, or in an unexpected place.
         # That means trouble; make sure the worker is cleaned up.
         os.kill(worker.pid, signal.SIGKILL)
-	
+
 
 DEFAULT_SIGINT_HANDLER = signal.getsignal(signal.SIGINT)
 
@@ -334,36 +334,36 @@ def oversee_one_task(task_string, worker, boss_conn):
     """" Give the worker one task, echo the results, and handle ^C. """
     
     def interrupt_worker(sig_num, stack_frame):
-	os.kill(worker.pid, signal.SIGINT)
-	# If there's another ^C, interrupt the boss (this process).
-	signal.signal(signal.SIGINT, DEFAULT_SIGINT_HANDLER)
+        os.kill(worker.pid, signal.SIGINT)
+        # If there's another ^C, interrupt the boss (this process).
+        signal.signal(signal.SIGINT, DEFAULT_SIGINT_HANDLER)
 
     print "-----"
     signal.signal(signal.SIGINT, interrupt_worker)
     boss_conn.send( (True, task_string) )
     while True:
-	try:
-	    chunk = boss_conn.recv()
-	    if chunk["eof"]:
-		break
+        try:
+            chunk = boss_conn.recv()
+            if chunk["eof"]:
+                break
 
             fd, text = chunk["fd"], chunk["text"]
-	    if fd == STDOUT_FILENO:
-		sys.stdout.write(text)
+            if fd == STDOUT_FILENO:
+                sys.stdout.write(text)
                 sys.stdout.flush()
-	    elif fd == STDERR_FILENO:
-	        sys.stderr.write(text)
+            elif fd == STDERR_FILENO:
+                sys.stderr.write(text)
                 sys.stderr.flush()
-	    else:
-	        sys.stderr.write(" FILENO %d? " % fd)
+            else:
+                sys.stderr.write(" FILENO %d? " % fd)
                 sys.stderr.flush()
-	except IOError as (code, msg):
-	    # Catch "interrupted system call" from ^C
-	    # during boss_conn.recv() above, and ignore.
-	    if code == errno.EINTR:
-		continue
+        except IOError as (code, msg):
+            # Catch "interrupted system call" from ^C
+            # during boss_conn.recv() above, and ignore.
+            if code == errno.EINTR:
+                continue
 
-	    raise
+            raise
 
     signal.signal(signal.SIGINT, DEFAULT_SIGINT_HANDLER)
     print "====="
