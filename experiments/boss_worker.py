@@ -12,7 +12,7 @@
         when the interpreted code calls flush() "manually".
     ^C from the keyboard is caught and relayed to the worker
         by calling os.kill(worker.pid, signal.SIGINT).
-    Tracebacks (overlong) are printed for exceptions and ^C.
+    Tracebacks are printed for exceptions and ^C.
 
     This file contains both the boss- and worker-side code.
     See worker_test and middle_manager_test, below,
@@ -62,8 +62,9 @@ def stdin_readlines():
 
 class Fd_pipe_wrapper():
     """
-    Wrapper to redirect an output stream into a multiprocessing.Connection pipe-end,
-    in such a way that it can be multiplexed with other output streams.
+    Wrapper to redirect an output stream into a multiprocessing.Connection
+    pipe-end, in such a way that it can be multiplexed with other output
+    streams.
     As in:
         stdout = Fd_pipe_wrapper(conn, STDOUT_FILENO)
         stderr = Fd_pipe_wrapper(conn, STDERR_FILENO)
@@ -154,7 +155,7 @@ def worker_main(worker_conn):
     Within the worker process, this is the "target" function that is run.
     It's the Python read-eval-print loop within the worker.
     It has a globals dictionary that persists between code_string tasks.
-    worker_conn is the worker's end of the boss-to-worker pipe.
+    worker_conn is the worker's end of the boss <-> worker pipe.
     """
     worker_globals = {}
     stdout = Tty_buffer(Fd_pipe_wrapper(worker_conn, STDOUT_FILENO))
@@ -203,10 +204,10 @@ def worker_print_exc(limit=None, file=sys.stderr,
                 tb[i] = (filename, line_no, fn_name, text)
         file.write("".join(traceback.format_list(tb)))
     file.write("".join(traceback.format_exception_only(exc_type, exc_value)))
-    
 
 
-def interpret(code_string, worker_globals, stdin, stdout, stderr, code_filename="<your input>"):
+def interpret(code_string, worker_globals, stdin, stdout, stderr,
+	      code_filename="<your input>"):
     """
     Parse the (multi-line) Python code_string, then exec it
         using the given globals dict,
@@ -248,7 +249,7 @@ def worker_test():
     """
     A test to run within the worker.  This lets you see...
       o  output appearing gradually (worker sleeps between prints)
-      o  automatic (newline) and forced (flush()) flushing of stdout
+      o  forced (flush()) and automatic (newline) flushing of stdout
       o  how the system responds to ^C.
     You can get the worker to run this by saying
         from boss_worker import *
@@ -294,7 +295,7 @@ def boss_main(initial_task=None):
     The main loop for the boss.
     Set up one worker multiprocessing.Process connected with a two-way pipe.
     Do the boss side of a Python read-eval-print loop, where
-        "read" means get multi-line input from the terminal, ended with a,
+        "read" means get multi-line input from the terminal, ended with a
              blank line (blank line alone means quit.)
         "eval" means send input to worker, which evals and sends outputs back,
         "print" outputs as they come back, till the worker says it's done.
@@ -343,6 +344,8 @@ def oversee_one_task(task_string, worker, boss_conn):
     boss_conn.send( (True, task_string) )
     while True:
         try:
+	    # If ^C is hit, it's likely to be while boss_conn.recv() is
+            # blocked waiting for output from the worker.
             chunk = boss_conn.recv()
             if chunk["eof"]:
                 break
@@ -357,13 +360,16 @@ def oversee_one_task(task_string, worker, boss_conn):
             else:
                 sys.stderr.write(" FILENO %d? " % fd)
                 sys.stderr.flush()
+		
+	# Python normally handles both SIGINT itself, and an EINTR that comes
+	# out of a blocked system call immediately after, with one exception:
+	# KeyboardInterrupt.  interrupt_worker() catches the SIGINT;
+	# here is where we deal with (ignore) the EINTR.
         except IOError as (code, msg):
-            # Catch "interrupted system call" from ^C
-            # during boss_conn.recv() above, and ignore.
             if code == errno.EINTR:
                 continue
-
-            raise
+            else:
+                raise
 
     signal.signal(signal.SIGINT, DEFAULT_SIGINT_HANDLER)
     print "====="
