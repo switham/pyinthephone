@@ -30,11 +30,14 @@ import errno
 from pty import STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO
 
 
-def stdin_readlines():
+def stdin_readlines(task_filename=None):
     """
     Get list of \n-terminated lines from stdin,
     terminated by a blank line or end of file.
     """
+    if task_filename:
+        print >>sys.stderr, "-----", task_filename, "-----"
+	sys.stderr.flush()
     lines = []
     # "for line in sys.stdin" has buffering which causes problems.
     while True:
@@ -162,11 +165,13 @@ def worker_main(worker_conn):
     stderr = Tty_buffer(Fd_pipe_wrapper(worker_conn, STDERR_FILENO))
     stdin = open("/dev/null", "r")
     while True:
-        do_run, code_string = worker_conn.recv()
-        if not do_run:
+        task = worker_conn.recv()
+        if not task["do_run"]:
             break
 
-        interpret(code_string, worker_globals, stdin, stdout, stderr)
+        interpret(task["code_string"], worker_globals,
+		  stdin, stdout, stderr,
+		  code_filename=task["code_filename"])
         stdout.flush()
         stderr.flush()
         worker_conn.send({"eof": True})
@@ -228,9 +233,9 @@ def interpret(code_string, worker_globals, stdin, stdout, stderr,
         if tree.body and isinstance(tree.body[-1], ast.Expr):
             last_line = ast.Interactive(tree.body[-1:])
             tree.body = tree.body[:-1]
-            code2 = compile(last_line, "<your input>", "single")
+            code2 = compile(last_line, code_filename, "single")
         if tree.body:
-            code1 = compile(tree, "<your input>", "exec")
+            code1 = compile(tree, code_filename, "exec")
 
         if code1:
             exec code1 in worker_globals
@@ -312,14 +317,19 @@ def boss_main(initial_task=None):
     try:
         if initial_task:
             print initial_task
-            oversee_one_task(initial_task, worker, boss_conn)
+            oversee_one_task(initial_task, worker, boss_conn,
+                             task_filename="<command-line>")
+        n = 1
         while True:
-            task_string = "".join(stdin_readlines())
+            task_filename = "<input %d>" % n
+            task_string = "".join(stdin_readlines(task_filename))
             if not task_string:
                 break
 
-            oversee_one_task(task_string, worker, boss_conn)
-        boss_conn.send( (False, "") )
+            oversee_one_task(task_string, worker, boss_conn,
+			     task_filename=task_filename)
+            n += 1
+        boss_conn.send( {"do_run": False} )
         worker.join()
     except KeyboardInterrupt:
         # Normally ^C is caught in oversee_one_task().  We catch it here
@@ -331,7 +341,8 @@ def boss_main(initial_task=None):
 DEFAULT_SIGINT_HANDLER = signal.getsignal(signal.SIGINT)
 
 
-def oversee_one_task(task_string, worker, boss_conn):
+def oversee_one_task(task_string, worker, boss_conn,
+		     task_filename="<your input>"):
     """" Give the worker one task, echo the results, and handle ^C. """
     
     def interrupt_worker(sig_num, stack_frame):
@@ -341,7 +352,10 @@ def oversee_one_task(task_string, worker, boss_conn):
 
     print "-----"
     signal.signal(signal.SIGINT, interrupt_worker)
-    boss_conn.send( (True, task_string) )
+    boss_conn.send({"do_run": True,
+                    "code_string": task_string,
+		    "code_filename": task_filename,
+		    })
     while True:
         try:
 	    # If ^C is hit, it's likely to be while boss_conn.recv() is
