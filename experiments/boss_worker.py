@@ -36,10 +36,11 @@ def stdin_readlines(task_filename=None):
     terminated by a blank line or end of file.
     """
     if task_filename:
-        print >>sys.stderr, "-----", task_filename, "-----"
+        print >>sys.stderr, "=====", task_filename, "====="
 	sys.stderr.flush()
     lines = []
     # "for line in sys.stdin" has buffering which causes problems.
+    first_line = True
     while True:
         try:
             line = sys.stdin.readline()
@@ -161,6 +162,7 @@ def worker_main(worker_conn):
     worker_conn is the worker's end of the boss <-> worker pipe.
     """
     worker_globals = {}
+    code_cache = {}
     stdout = Tty_buffer(Fd_pipe_wrapper(worker_conn, STDOUT_FILENO))
     stderr = Tty_buffer(Fd_pipe_wrapper(worker_conn, STDERR_FILENO))
     stdin = open("/dev/null", "r")
@@ -169,16 +171,20 @@ def worker_main(worker_conn):
         if not task["do_run"]:
             break
 
-        interpret(task["code_string"], worker_globals,
+	code_filename = task["code_filename"]
+	code_string = task["code_string"]
+	code_cache[code_filename] = code_string.splitlines()
+        interpret(code_string, worker_globals,
 		  stdin, stdout, stderr,
-		  code_filename=task["code_filename"])
+		  code_filename=code_filename,
+		  code_cache=code_cache)
         stdout.flush()
         stderr.flush()
         worker_conn.send({"eof": True})
 
 
 def worker_print_exc(limit=None, file=sys.stderr,
-                     code_filename=None, code_string=None):
+                     code_filename=None, code_cache={}):
     """
     Like traceback.print_exc(), except:
     1) Print traceback starting with the first entry about code_filename
@@ -202,17 +208,16 @@ def worker_print_exc(limit=None, file=sys.stderr,
         tb = tb[:min(len(tb), limit)]
     if tb:
         print >>file, "Traceback (most recent call last):"
-        code_lines = code_string.splitlines()
         for i, (filename, line_no, fn_name, text) in enumerate(tb):
-            if text == None and filename == code_filename:
-                text = code_lines[line_no - 1].strip()
+            if text == None and filename in code_cache:
+                text = code_cache[filename][line_no - 1].strip()
                 tb[i] = (filename, line_no, fn_name, text)
         file.write("".join(traceback.format_list(tb)))
     file.write("".join(traceback.format_exception_only(exc_type, exc_value)))
 
 
 def interpret(code_string, worker_globals, stdin, stdout, stderr,
-	      code_filename="<your input>"):
+	      code_filename="<your input>", code_cache={}):
     """
     Parse the (multi-line) Python code_string, then exec it
         using the given globals dict,
@@ -243,7 +248,7 @@ def interpret(code_string, worker_globals, stdin, stdout, stderr,
             exec code2 in worker_globals
     except:
         print >>sys.stdout  # Flush and newline.
-        worker_print_exc(None, sys.stderr, code_filename, code_string)
+        worker_print_exc(None, sys.stderr, code_filename, code_cache)
     finally:
         sys.stdin = saved_stdin
         sys.stdout = saved_stdout
@@ -269,7 +274,7 @@ def worker_test():
                 # The first five lines flush every number printed.
                 sys.stdout.flush()
         # All lines flush at the newline.
-        print
+	print
 
 
 def middle_manager_test(level=1):
@@ -319,17 +324,18 @@ def boss_main(initial_task=None):
             print initial_task
             oversee_one_task(initial_task, worker, boss_conn,
                              task_filename="<command-line>")
-        n = 1
-        while True:
-            task_filename = "<input %d>" % n
-            task_string = "".join(stdin_readlines(task_filename))
-            if not task_string:
-                break
+	else:	
+	    n = 1
+	    while True:
+		task_filename = "<input %d>" % n
+		task_string = "".join(stdin_readlines(task_filename))
+		if not task_string:
+		    break
 
-            oversee_one_task(task_string, worker, boss_conn,
-			     task_filename=task_filename)
-            n += 1
-        boss_conn.send( {"do_run": False} )
+		oversee_one_task(task_string, worker, boss_conn,
+				 task_filename=task_filename)
+		n += 1
+        boss_conn.send({"do_run": False})
         worker.join()
     except KeyboardInterrupt:
         # Normally ^C is caught in oversee_one_task().  We catch it here
@@ -386,7 +392,6 @@ def oversee_one_task(task_string, worker, boss_conn,
                 raise
 
     signal.signal(signal.SIGINT, DEFAULT_SIGINT_HANDLER)
-    print "====="
 
 
 if __name__ == "__main__":
