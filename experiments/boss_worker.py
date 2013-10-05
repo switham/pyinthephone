@@ -30,17 +30,16 @@ import errno
 from pty import STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO
 
 
-def stdin_readlines(task_filename=None):
+def stdin_readlines(task_filename):
     """
     Get list of \n-terminated lines from stdin,
     terminated by a blank line or end of file.
     """
     if task_filename:
         print >>sys.stderr, "=====", task_filename, "====="
-	sys.stderr.flush()
+    sys.stderr.flush()
     lines = []
     # "for line in sys.stdin" has buffering which causes problems.
-    first_line = True
     while True:
         try:
             line = sys.stdin.readline()
@@ -171,13 +170,13 @@ def worker_main(worker_conn):
         if not task["do_run"]:
             break
 
-	code_filename = task["code_filename"]
-	code_string = task["code_string"]
-	code_cache[code_filename] = code_string.splitlines()
+        code_filename = task["code_filename"]
+        code_string = task["code_string"]
+        code_cache[code_filename] = code_string.splitlines()
         interpret(code_string, worker_globals,
-		  stdin, stdout, stderr,
-		  code_filename=code_filename,
-		  code_cache=code_cache)
+                  stdin, stdout, stderr,
+                  code_filename,
+                  code_cache)
         stdout.flush()
         stderr.flush()
         worker_conn.send({"eof": True})
@@ -188,9 +187,10 @@ def worker_print_exc(limit=None, file=sys.stderr,
     """
     Like traceback.print_exc(), except:
     1) Print traceback starting with the first entry about code_filename
-       (which in our case will be a string like "<your input>").
-    2) For lines in code_filename, include the appropriate line's text from
-       code_string. (print_exc() etc. can't fetch lines from not-real files.)
+       (which in our case will be a string like "<input 17>").
+    2) For lines in current or previous tasks (rather than imported modules),
+       include the appropriate line's text from code_cache.
+       (print_exc() etc. can't fetch lines files.)
     """
     if code_filename == None:
         traceback.print_exc(limit, file)
@@ -217,7 +217,7 @@ def worker_print_exc(limit=None, file=sys.stderr,
 
 
 def interpret(code_string, worker_globals, stdin, stdout, stderr,
-	      code_filename="<your input>", code_cache={}):
+              code_filename, code_cache):
     """
     Parse the (multi-line) Python code_string, then exec it
         using the given globals dict,
@@ -274,7 +274,7 @@ def worker_test():
                 # The first five lines flush every number printed.
                 sys.stdout.flush()
         # All lines flush at the newline.
-	print
+        print
 
 
 def middle_manager_test(level=1):
@@ -324,17 +324,17 @@ def boss_main(initial_task=None):
             print initial_task
             oversee_one_task(initial_task, worker, boss_conn,
                              task_filename="<command-line>")
-	else:	
-	    n = 1
-	    while True:
-		task_filename = "<input %d>" % n
-		task_string = "".join(stdin_readlines(task_filename))
-		if not task_string:
-		    break
+        else:        
+            n = 1
+            while True:
+                task_filename = "<input %d>" % n
+                task_string = "".join(stdin_readlines(task_filename))
+                if not task_string:
+                    break
 
-		oversee_one_task(task_string, worker, boss_conn,
-				 task_filename=task_filename)
-		n += 1
+                oversee_one_task(task_string, worker, boss_conn,
+                                 task_filename)
+                n += 1
         boss_conn.send({"do_run": False})
         worker.join()
     except KeyboardInterrupt:
@@ -348,7 +348,7 @@ DEFAULT_SIGINT_HANDLER = signal.getsignal(signal.SIGINT)
 
 
 def oversee_one_task(task_string, worker, boss_conn,
-		     task_filename="<your input>"):
+                     task_filename):
     """" Give the worker one task, echo the results, and handle ^C. """
     
     def interrupt_worker(sig_num, stack_frame):
@@ -360,11 +360,11 @@ def oversee_one_task(task_string, worker, boss_conn,
     signal.signal(signal.SIGINT, interrupt_worker)
     boss_conn.send({"do_run": True,
                     "code_string": task_string,
-		    "code_filename": task_filename,
-		    })
+                    "code_filename": task_filename,
+                    })
     while True:
         try:
-	    # If ^C is hit, it's likely to be while boss_conn.recv() is
+            # If ^C is hit, it's likely to be while boss_conn.recv() is
             # blocked waiting for output from the worker.
             chunk = boss_conn.recv()
             if chunk["eof"]:
@@ -380,11 +380,11 @@ def oversee_one_task(task_string, worker, boss_conn,
             else:
                 sys.stderr.write(" FILENO %d? " % fd)
                 sys.stderr.flush()
-		
-	# Python normally handles both SIGINT itself, and an EINTR that comes
-	# out of a blocked system call immediately after, with one exception:
-	# KeyboardInterrupt.  interrupt_worker() catches the SIGINT;
-	# here is where we deal with (ignore) the EINTR.
+                
+        # Python normally handles both SIGINT itself, and an EINTR that comes
+        # out of a blocked system call immediately after, with one exception:
+        # KeyboardInterrupt.  interrupt_worker() catches the SIGINT;
+        # here is where we deal with (ignore) the EINTR.
         except IOError as (code, msg):
             if code == errno.EINTR:
                 continue
