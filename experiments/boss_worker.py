@@ -190,7 +190,7 @@ def worker_print_exc(limit=None, file=sys.stderr,
        (which in our case will be a string like "<input 17>").
     2) For lines in current or previous tasks (rather than imported modules),
        include the appropriate line's text from code_cache.
-       (print_exc() etc. can't fetch lines files.)
+       (print_exc() etc. can only fetch lines from actual files.)
     """
     if code_filename == None:
         traceback.print_exc(limit, file)
