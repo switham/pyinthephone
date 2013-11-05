@@ -3,7 +3,7 @@
 pyinthephone_public.py
     Copyright (c) 2013 Steve Witham All rights reserved.  
     PyInThePhone is available under a BSD license, whose full text is at:
-        https://github.com/switham/pyinthephone/blob/master/README
+        https://github.com/switham/pyinthephone/blob/master/LICENSE
 
 pyinthephone serving source + PYTHON on PUBLIC IP.
 The Python interpreter is turned on.  Serves on a PUBLIC IP address.
