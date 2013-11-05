@@ -2,8 +2,8 @@
 """
 pyinthephone_public.py
     Copyright (c) 2013 Steve Witham All rights reserved.  
-    PyInThePhone is available under a BSD two-clause license, whose
-    full text can be found at http://github.com/switham/pyinthephone/LICENSE
+    PyInThePhone is available under a BSD license, whose full text is at:
+        https://github.com/switham/pyinthephone/blob/master/README
 
 pyinthephone serving source + PYTHON on PUBLIC IP.
 The Python interpreter is turned on.  Serves on a PUBLIC IP address.

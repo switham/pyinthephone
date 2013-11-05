@@ -1,5 +1,11 @@
 #!/usr/bin/env python
-""" ajax.py """
+""" 
+ajax.py -- experiment doing AJAX requests and modifying the DOM.
+
+    Copyright (c) 2013 Steve Witham All rights reserved.  
+    PyInThePhone is available under a BSD license, whose full text is at:
+        https://github.com/switham/pyinthephone/blob/master/README
+"""
 
 from bottle import route, run
 from bottle import static_file
