@@ -41,7 +41,7 @@ def stdin_readlines(task_filename):
     terminated by a blank line or end of file.
     """
     if task_filename:
-        print >>sys.stderr, "=====", task_filename, "====="
+        print >>sys.stderr, "=====", task_filename, "(blank line to end) ====="
     sys.stderr.flush()
     lines = []
     # "for line in sys.stdin" has buffering which causes problems.
@@ -298,17 +298,21 @@ def middle_manager_test(level=1):
         from boss_worker import *
         middle_manager_test()
     """
-    print "Level %d middle-manager, pid %d, starting." % (level, os.getpid())
+    self = "Level %d middle-manager, pid %d" % (level, os.getpid())
+    
+    print self, "starting."
     print "- - -"
     if level <= 1:
         task = "worker_test()"
     else:
         task = "middle_manager_test(%d)" % (level - 1)
-    boss_main("from boss_worker import *\n" + task)
-    print "Level %d middle-manager, pid %d, stopping." % (level, os.getpid())
+
+    task_filename = "<%s commands>" % self
+    boss_main("from boss_worker import *\n" + task, task_filename)
+    print self, "stopping."
 
 
-def boss_main(initial_task=None):
+def boss_main(initial_task=None, task_filename="<boss-commands>"):
     """
     The main loop for the boss.
     Set up one worker multiprocessing.Process connected with a two-way pipe.
@@ -334,7 +338,7 @@ def boss_main(initial_task=None):
         if initial_task:
             print initial_task
             oversee_one_task(initial_task, worker, boss_conn,
-                             task_filename="<command-line>")
+                             task_filename)
         else:        
             n = 1
             while True:
