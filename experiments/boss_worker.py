@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
     Experiment running Python code in a subprocess.
-    This runs a minimal, ugly shell the terminal,
+    This runs a minimal, ugly shell on the terminal,
     with all the work done in a worker subprocess.
     The worker keeps the Python globals, imported modules,
     and defined functions and classes between tasks.
