@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 """
     Experiment running Python code in a subprocess.
-    This runs a minimal, ugly Python shell on the command line,
-        with all the work done in a worker subprocess.
+    This runs a minimal, ugly shell the terminal,
+    with all the work done in a worker subprocess.
     The worker keeps the Python globals, imported modules,
-        and defined functions and classes between tasks.
+    and defined functions and classes between tasks.
     Output can show up in dribs and drabs with pauses between.
     Stdout and stderr streams are multiplexed through a pipe and
     come out the terminal's stdout and stderr respectively.
     Outputs are buffered, with flushing both at newlines and
-        when the interpreted code calls flush() "manually".
+    when the interpreted code calls flush() "manually".
     ^C from the keyboard is caught and relayed to the worker
-        by calling os.kill(worker.pid, signal.SIGINT).
+    by calling os.kill(worker.pid, signal.SIGINT).
     Tracebacks are printed for exceptions and ^C.
 
     This file contains both the boss- and worker-side code.
@@ -124,7 +124,8 @@ class Fd_pipe_wrapper():
 
 class Tty_buffer(object):
     """
-    Do buffering for a file-like object the way the stdout does
+    An object that wraps a file-like object
+    and does buffering for it the way the stdout does
     when connected to a terminal, i.e., flush on newlines.
     """
     def __init__(self, file_like_object, buffsize=2048):
@@ -287,33 +288,38 @@ def middle_manager_test(level=1):
     A test to run within the worker.  The worker becomes a boss to
     another worker, tells the subworker to run worker_test (above), and
     makes comments before and after.  This shows output and ^C (if you like)
-    being relayed two steps.
+    being relayed two steps.  If level > 1, a tower of *level*
+    middle_manager_test() processes above one worker_test() process is run.
 
-    Not really an essential feature but once I thought of it I had to do it.
+    Not really an intended use-case but it tests that the generality that
+    seems to be here really works.
 
     You can get the worker to run this by saying
         from boss_worker import *
         middle_manager_test()
     """
-    print "I am level", level, "middle-manager pid", os.getpid()
+    print "Level %d middle-manager, pid %d, starting." % (level, os.getpid())
     print "- - -"
     if level <= 1:
         task = "worker_test()"
     else:
         task = "middle_manager_test(%d)" % (level - 1)
     boss_main("from boss_worker import *\n" + task)
-    print "I am pid %d, tired of level %d management." % (os.getpid(), level)
+    print "Level %d middle-manager, pid %d, stopping." % (level, os.getpid())
 
 
 def boss_main(initial_task=None):
     """
     The main loop for the boss.
     Set up one worker multiprocessing.Process connected with a two-way pipe.
-    Do the boss side of a Python read-eval-print loop, where
+    If initial_task == None, do the boss side of a Python read-eval-print loop,
+    where
         "read" means get multi-line input from the terminal, ended with a
              blank line (blank line alone means quit.)
         "eval" means send input to worker, which evals and sends outputs back,
         "print" outputs as they come back, till the worker says it's done.
+    If initial_task != None, then perform just one eval-print cycle, where
+        initial_task is a newline-delimited command string for the worker.
     Handle ^C by just relaying it to the worker to interrupt the current task.
         (a second ^C kills the worker and quits entirely).
     """
