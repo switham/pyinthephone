@@ -27,8 +27,8 @@ This code is insecure!
     It displays at least one Unix environment variable (PWD).
     It shows Python stack traces on the python and 404 pages.
     It runs any Python code you give it.
-    Besides python, it may be vulnerable to code-injection attacts
-        (although I made some vain gestures).
+    Besides python, it may be vulnerable to code-injection attacks
+        (although I made some vague gestures).
     The files arguments, pyinthephone_files.py and pyinthephone_public.py
     make this script display its own source code.
 """
@@ -172,6 +172,13 @@ ROUTES = {}
 
 def route(path_pattern):
     """
+    Used as a decorator, i.e.,
+        @route(path_pattern1)
+        @route(path_pattern2)
+        ...
+        def foo(...):
+           ...
+
     path_pattern should either
        start with "/" and end with "/*" --wildcard match-- or
        start with "/" but not include "*" --exact match.

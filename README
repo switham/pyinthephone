@@ -3,19 +3,29 @@ PyInThePhone README
     PyInThePhone is available under a BSD license, whose full text is at:
         https://github.com/switham/pyinthephone/blob/master/LICENSE
 
-PyInThePhone is a Python notebook for Android phones and tablets.
-PyInThePhone comes in two parts: 
-  o  a web page where you go with your browser, type paragraphs of Python,
-     and see the resulting outputs, and 
-  o  a Python-based web server that does the work.  
-Both of these run in your phone (or your computer; see below).
+PyInThePhone is the beginning of a Python notebook for Android phones and
+tablets.  Currently the PyInThePhone project contains three interesting
+stabs:
+    o  The current state of PyInThePhone proper in the scripts/ directory
+       (described below).
+    o  experiments/boss_worker.py, which, unlike the current PyInThePhone
+       server, runs Python tasks in subprocess(es), allowing
+           -  gradually-appearing output from long-running tasks
+           -  interruption (like control C) from the user.
+    o  experiments/ajax.py, based on bottle (instead of my hand-written
+       routing and templating code), which serves a demo of a single-page
+       app using an ajax call and modifying the DOM in the client.
+       
+PyInThePhone proper has two parts:
+  o  first you start a Python-based web server that will do the work.  
+  o  then you go to that server's web page with your browser,
+     type paragraphs of Python, and see the resulting outputs.
 
-PyInThePhone is at the prototype stage.  See the issues list at
+It would be nice if you could just get the app at the Google store, run
+it, and both of the above things would happen.  Instead, PyInThePhone
+requires quite a bit of computer-techie tedium (laid out below) to get
+going on a phone.  See that and other issues at
     https://github.com/switham/pyinthephone/issues
-
-PyInThePhone requires SL4A, Scripting Layer for Android,
-and PythonForAndroid, to work.  There are instructions for setting 
-everything up from scratch and using pyinthephone, below.
 
 PyInThePhone was inspired by a talk by Jessica McKellar,
 and by iPython, which has a beautiful notebook feature
@@ -30,6 +40,10 @@ from one phone to another, from the phone to any computer, and from Unix
 or Mac (not sure about Windows) to the phone.  It also serves its own 
 source code so that script changes made in one place can be downloaded 
 to another.
+
+For PyInThePhone to work on Android requires SL4A (Scripting Layer for
+Android) and PythonForAndroid.  There are instructions for setting 
+everything up from scratch and using pyinthephone, below.
 
 For explanation of the code, see the comments in pyinthephone.py.
 For usage of the server's options, see the optparse lines near the top of

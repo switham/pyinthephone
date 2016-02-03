@@ -1,15 +1,21 @@
 #!/usr/bin/env python
 """
     Experiment running Python code in a subprocess.
-    This runs a minimal, ugly shell on the terminal,
-    with all the work done in a worker subprocess.
-    The worker keeps the Python globals, imported modules,
-    and defined functions and classes between tasks.
+    TODO: lassoo code that creates, gives tasks to, gets output from,
+          and closes workers into a class with a nice API.
+
+    Currently this runs an interactive demo: a minimal, ugly shell 
+    on the terminal, with all the work done in a worker subprocess.
+
+    The worker holds the Python globals (including imported items,
+    defined functions, and classes) between tasks.
+
     Output can show up in dribs and drabs with pauses between.
     Stdout and stderr streams are multiplexed through a pipe and
     come out the terminal's stdout and stderr respectively.
     Outputs are buffered, with flushing both at newlines and
     when the interpreted code calls flush() "manually".
+
     ^C from the keyboard is caught and relayed to the worker
     by calling os.kill(worker.pid, signal.SIGINT).
     Tracebacks are printed for exceptions and ^C.
@@ -18,7 +24,15 @@
     See worker_test and middle_manager_test, below,
     for illustrative tasks to give the worker.
 
-    Copyright (c) 2013 Steve Witham All rights reserved.  
+    SECURITY WEAKNESS: The worker is a clone of the boss at the time the 
+    worker is created.  The worker gets a cleared globals dictionary.  But 
+    the boss's entire memory image (including, say, info on other workers/
+    users/ sessions) is there, and any modules the boss had imported are in 
+    the  import cache (even though not in the worker's globals until the 
+    worker imports them).  For instance, the default PRNG in the random 
+    module would start in the state where the boss had left it.
+
+    Copyright (c) 2016 Steve Witham All rights reserved.  
     PyInThePhone is available under a BSD license, whose full text is at:
         https://github.com/switham/pyinthephone/blob/master/LICENSE
     
@@ -165,6 +179,12 @@ def worker_main(worker_conn):
     It's the Python read-eval-print loop within the worker.
     It has a globals dictionary that persists between code_string tasks.
     worker_conn is the worker's end of the boss <-> worker pipe.
+
+    code_cache stores all the code_strings that have been seen, to allow
+    error/exception/control-C tracebacks to show source lines
+    and which code_filename each line came from (e.g. "[1]", "[2]"...).
+    Reusing the same code_filename replaces that "file" in code_cache,
+    so you might want to give edited inputs new code_filenames.
     """
     worker_globals = {}
     code_cache = {}
@@ -186,40 +206,6 @@ def worker_main(worker_conn):
         stdout.flush()
         stderr.flush()
         worker_conn.send({"eof": True})
-
-
-def worker_print_exc(limit=None, file=sys.stderr,
-                     code_filename=None, code_cache={}):
-    """
-    Like traceback.print_exc(), except:
-    1) Print traceback starting with the first entry about code_filename
-       (which in our case will be a string like "<input 17>").
-    2) For lines in current or previous tasks (rather than imported modules),
-       include the appropriate line's text from code_cache.
-       (print_exc() etc. can only fetch lines from actual files.)
-    """
-    if code_filename == None:
-        traceback.print_exc(limit, file)
-        return
-
-    exc_type, exc_value, exc_traceback = sys.exc_info()
-    tb = traceback.extract_tb(exc_traceback)
-    for i, entry in enumerate(tb):
-        if entry[0] == code_filename:
-            tb = tb[i:]
-            break
-    else:
-        tb = []
-    if limit != None:
-        tb = tb[:min(len(tb), limit)]
-    if tb:
-        print >>file, "Traceback (most recent call last):"
-        for i, (filename, line_no, fn_name, text) in enumerate(tb):
-            if text == None and filename in code_cache:
-                text = code_cache[filename][line_no - 1].strip()
-                tb[i] = (filename, line_no, fn_name, text)
-        file.write("".join(traceback.format_list(tb)))
-    file.write("".join(traceback.format_exception_only(exc_type, exc_value)))
 
 
 def interpret(code_string, worker_globals, stdin, stdout, stderr,
@@ -259,6 +245,40 @@ def interpret(code_string, worker_globals, stdin, stdout, stderr,
         sys.stdin = saved_stdin
         sys.stdout = saved_stdout
         sys.stderr = saved_stderr
+
+
+def worker_print_exc(limit=None, file=sys.stderr,
+                     code_filename=None, code_cache={}):
+    """
+    Like traceback.print_exc(), except:
+    1) Print traceback starting with the first entry about code_filename
+       (which in our case will be a string like "<input 17>").
+    2) For lines in current or previous tasks (rather than imported modules),
+       include the appropriate line's text from code_cache.
+       (print_exc() etc. can only fetch lines from actual files.)
+    """
+    if code_filename == None:
+        traceback.print_exc(limit, file)
+        return
+
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    tb = traceback.extract_tb(exc_traceback)
+    for i, entry in enumerate(tb):
+        if entry[0] == code_filename:
+            tb = tb[i:]
+            break
+    else:
+        tb = []
+    if limit != None:
+        tb = tb[:min(len(tb), limit)]
+    if tb:
+        print >>file, "Traceback (most recent call last):"
+        for i, (filename, line_no, fn_name, text) in enumerate(tb):
+            if text == None and filename in code_cache:
+                text = code_cache[filename][line_no - 1].strip()
+                tb[i] = (filename, line_no, fn_name, text)
+        file.write("".join(traceback.format_list(tb)))
+    file.write("".join(traceback.format_exception_only(exc_type, exc_value)))
 
 
 def worker_test():
@@ -396,10 +416,10 @@ def oversee_one_task(task_string, worker, boss_conn,
                 sys.stderr.write(" FILENO %d? " % fd)
                 sys.stderr.flush()
                 
-        # Python normally handles both SIGINT itself, and an EINTR that comes
-        # out of a blocked system call immediately after, with one exception:
-        # KeyboardInterrupt.  interrupt_worker() catches the SIGINT;
-        # here is where we deal with (ignore) the EINTR.
+        # Python normally catches both SIGINT itself, and an EINTR that comes
+        # from a blocked system call immediately after, raising one exception:
+        # KeyboardInterrupt.  interrupt_worker() is set to catch the SIGINT;
+        # here is where we deal with the possible EINTR--by ignoring it.
         except IOError as (code, msg):
             if code == errno.EINTR:
                 continue
