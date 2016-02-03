@@ -6,10 +6,10 @@ PyInThePhone README
 PyInThePhone is the beginning of a Python notebook for Android phones and
 tablets.  Currently the PyInThePhone project contains three interesting
 stabs:
-    o  The current state of PyInThePhone proper in the scripts/ directory
-       (described below).
+    o  The current working but very simple state of PyInThePhone proper
+       in the scripts/ directory (described below).
     o  experiments/boss_worker.py, which, unlike the current PyInThePhone
-       server, runs Python tasks in subprocess(es), allowing
+       server, runs Python tasks in a subprocess, allowing
            -  gradually-appearing output from long-running tasks
            -  interruption (like control C) from the user.
     o  experiments/ajax.py, based on bottle (instead of my hand-written
